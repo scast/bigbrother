@@ -1,5 +1,5 @@
 {
-module Lexer (Lexeme(..), LexemeClass(..), lexer) where
+module Lexer (Lexeme(..), LexemeClass(..), AlexPosn(..), lexer) where
 import Control.Monad.Writer
 import Data.Either
 }
@@ -43,7 +43,7 @@ tokens :-
   "enum" { mkL LEnum }
   "#" { mkL LHash}
   "%" { mkL LPercentage }
-  "unsigned" { mkL LUnsigned }
+--  "unsigned" { mkL LUnsigned }
   "," { mkL LComma }
   "as" { mkL LAs }
   "type" { mkL LType }

@@ -1,6 +1,7 @@
 > {
-> module Parser (parser) where
+> module Parser (parseTokens) where
 > import Lexer
+> import Control.Monad.Writer
 > }
 
 > %left '..'
@@ -21,6 +22,7 @@
 
 > %name parser
 > %tokentype { Lexeme }
+> %monad { Parser }
 > %error { happyError }
 
 > %token
@@ -290,7 +292,9 @@
 >   : '=' EXPR { Just $2 }
 >   | {- empty -} { Nothing }
 
-> PRINTP : PRINT EXPRLIST ';' { Print $2 }
+> PRINTP
+>  : PRINT EXPRLIST ';' { Print $2 }
+
 > GRABP : GRAB EXPR ';' { Grab $2 }
 
 > {
@@ -341,7 +345,20 @@
 
 > type Initialization = (String, Maybe Expr)
 > type ListOfDef = [(Type, [Initialization])]
+>
 
-> happyError x = error "Because I'm Happy...!"
+
+> type ParseError = String
+> -- type Parser = WriterT [ParseError] Either ParseError
+> type Parser = Either ParseError
+
+> showPosn (AlexPn _ line col) = show line ++ ':': show col
+
+
+
+> happyError :: [Lexeme] -> Parser a
+> happyError tokens = Left $ "Snafu situation " ++ (show tokens)
+
+> parseTokens tokens = parser tokens
 
 > }
