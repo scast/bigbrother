@@ -338,7 +338,6 @@
 
 > type Initialization = (Ident, Maybe Expr)
 > type ListOfDef = [(Type, [Initialization])]
->
 
 > data Ident = Ident String Int Int deriving (Show)
 > saveIdent :: Lexeme -> Ident
@@ -349,8 +348,6 @@
 > type Parser = Either ParseError
 
 > showPosn (AlexPn _ line col) = show line ++ ':': show col
-
-
 
 > happyError :: [Lexeme] -> Parser a
 > happyError tokens = Left $ "Snafu situation " ++ (show tokens)
