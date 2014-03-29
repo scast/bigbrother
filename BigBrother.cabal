@@ -63,7 +63,7 @@ executable BigBrother
   build-depends:       base >=4.6 && <4.7, array >=0.4 && <0.5, mtl
   
   -- Directories containing source files.
-  hs-source-dirs:      src
+  hs-source-dirs:      src, src/templates
 
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   build-tools:         happy, alex

@@ -7,4 +7,4 @@ import Lexer
 tokens =  snd $ lexer "static x, y, z : int;"
 
 main = do
-  putStrLn $ show $ parser $ tokens
+  putStrLn "Hola"
