@@ -39,7 +39,7 @@
 >    STRUCT { L _ LStruct s }
 >    UNION { L _ LUnion s }
 >    ENUM { L _ LEnum s }
->    UNSIGNED { L _ LUnsigned s }
+> --   UNSIGNED { L _ LUnsigned s }
 >    AS { L _ LAs s }
 >    TYPE { L _ LType s }
 >    IF  { L _ LIf s }
@@ -107,25 +107,48 @@
 >   | INICIAL GLOBAL { $1 ++ [$2] }
 
 > GLOBAL
-> --  : GLOBALVAR { $1 }
-> --  : STRUCTDEF { $1 }
-> : FUNCION { $1 }
+>   : DECKIND LISTAVARIABLES ':' TYPESIMPLE ';' { GlobalVar $1 $4 $2 }
+>   | TYPE IDENT '=' TYPESIMPLE ';' { TypeDef $2 $4 }
+>   | FUNCION { $1 }
+>   | TYPECOMBINE { DefCombine $1 }
 
 > FUNCION
->    : FN IDENT '(' PARLIST ')' ':' TYPEN '{' INSTLIST '}' { Function $2 $4 $7 $9 }
->    | FN IDENT '(' PARLIST ')' '{' INSTLIST '}' { Function $2 $4 (Type "void") $7 }
+>    : FN IDENT '(' PARLISTONADA ')' ':' TYPESIMPLE BLOQUE { Function $2 $4 $7 $8 }
+>    | FN IDENT '(' PARLISTONADA ')' BLOQUE { Function $2 $4 (Type "void") $6 }
 
-> PARLIST
->   : PARLIST ',' PARAMETER { $1 ++ [$3] }
->   | PARAMETER { [$1] }
+> PARLISTONADA
+> : POSITIONALP { $1 }
+> | WDEFAULTS { $1 }
+> | POSITIONALP ',' WDEFAULTS { $1 ++ $3 }
+> | { [] }
 
-> PARAMETER
->   : IDENT INIT ':' TYPEN { ($1, $2, $4) }
+> POSITIONALP
+>   : POSITIONALP ',' IDENT ':' TYPESIMPLEREF { $1 ++ [($3, Nothing, $5)] }
+>   | IDENT ':' TYPESIMPLEREF { [($1, Nothing, $3)] }
 
+> WDEFAULTS
+>   : WDEFAULTS ',' IDENT '=' EXPR ':' TYPESIMPLEREF { $1 ++ [($3, Just $5, $7)] }
+>   | IDENT '=' EXPR ':' TYPESIMPLEREF { [($1, Just $3, $5)]}
+
+> TYPESIMPLEREF
+>   : TYPESIMPLE  { $1 }
+>   | TYPESIMPLE '&' { ReferenceTo $1 }
 
 > TYPEN
+>   : TYPESIMPLE { $1 }
+>   | TYPECOMBINE { $1 }
+
+> TYPECOMBINE
+>   : STRUCT IDENT '{' FIELDS '}' { TypeStruct $2 $4 }
+>   | STRUCT IDENT '{' FIELDS '}' DIMENSIONS { ArrayOf (TypeStruct $2 $4) $6 }
+>   | UNION IDENT '{' FIELDS '}' { TypeUnion $2 $4 }
+>   | UNION IDENT '{' FIELDS '}' DIMENSIONS { ArrayOf (TypeUnion $2 $4) $6 }
+>   | ENUM IDENT '{' LISTAVARIABLES '}' { TypeEnum $2 $4 }
+>   | ENUM IDENT '{' LISTAVARIABLES '}' DIMENSIONS { ArrayOf (TypeEnum $2 $4) $6 }
+
+> TYPESIMPLE
 >   : IDENT { Type $1 }
->   | IDENT DIMENSIONS { ArrayOf $1 $2 }
+>   | IDENT DIMENSIONS { ArrayOf (Type $1) $2 }
 
 > DIMENSIONS
 >   : '[' EXPR ']' { [Just $2] }
@@ -134,19 +157,58 @@
 >   | DIMENSIONS '[' ']' { $1 ++ [Nothing] }
 
 > INSTLIST
->   : INST ';' { [$1] }
->   | INSTLIST INST ';' { $1 ++ [$2] }
+>   : INST { [$1] }
+>   | INSTLIST INST { $1 ++ [$2] }
+
+> BLOQUE
+>   : '{' INSTLIST '}' { $2 }
 
 > INST
 >   : DEC { $1 }
+>   | ASIGNACION ';' { $1 }
+>   | SELECTOR { $1 }
+>   | LOOPING { $1 }
 >   | RETURNP { $1 }
->   | CONTINUEP { $1 }
->   | BREAKP { $1 }
+>   | CONTINUE ';' { Continue }
+>   | BREAK ';' { Break }
 >   | PRINTP { $1 }
 >   | GRABP { $1 }
 
 > DEC
->   : VAR LISTAVARIABLES ':' TYPEN { VarDeclaration VarKind $4 $2 }
+>   : VAR LISTAVARIABLES ':' TYPESIMPLE ';' { LocalVar $4 $2 }
+
+> DECKIND
+>   : VAR { VarKind }
+>   | STATIC { Static }
+>   | CONST { Const }
+
+> SELECTOR
+>   : IFANIDADO { If $1 }
+>   | IFANIDADO ELSE BLOQUE { If ($1 ++ [(Nothing, $3)]) }
+
+> IFANIDADO
+>   : IF EXPR BLOQUE { [(Just $2, $3)] }
+>   | IFANIDADO ELSE IF EXPR BLOQUE { $1 ++ [(Just $4, $5)] }
+
+> LOOPING
+>   : LOOP BLOQUE { Loop $2 }
+>   | WHILE EXPR BLOQUE { While $2 $3 }
+>   | FOR TYPESIMPLEREF IDENT ':' EXPR BLOQUE { For $2 $3 $5 $6 }
+
+> ASIGNACION
+>   : IDENT '=' EXPR   { Assign "=" $1 $3 }
+>   | IDENT '+=' EXPR  { Assign "+" $1 $3 }
+>   | IDENT '-=' EXPR  { Assign "-" $1 $3 }
+>   | IDENT '*=' EXPR  { Assign "*" $1 $3 }
+>   | IDENT '/=' EXPR  { Assign "/" $1 $3 }
+>   | IDENT '%=' EXPR  { Assign "%" $1 $3 }
+>   | IDENT '>>=' EXPR { Assign ">>" $1 $3 }
+>   | IDENT '<<=' EXPR { Assign "<<" $1 $3 }
+>   | IDENT '&=' EXPR  { Assign "&" $1 $3 }
+>   | IDENT '|=' EXPR  { Assign "|" $1 $3 }
+>   | IDENT '^=' EXPR  { Assign "^" $1 $3 }
+>   | IDENT '&&=' EXPR { Assign "&&" $1 $3 }
+>   | IDENT '||=' EXPR { Assign "||" $1 $3 }
 
 > EXPR
 >   : CHAR { Char $1 }
@@ -180,7 +242,7 @@
 >   | EXPR '..' EXPR { R $1 $3 (Number "1") }
 >   | EXPR '..' EXPR BY EXPR { R $1 $3 $5  }
 >   | '#' EXPR { U $1 $2 }
->   | '@' EXPR { U $1 $2  }
+>   | '@' EXPR { U $1 $2 }
 >   | '~' EXPR { U $1 $2 }
 >   | '-' EXPR %prec NEG { U $1 $2  }
 >   | '+' EXPR %prec PLUS { U $1 $2  }
@@ -188,54 +250,61 @@
 >   | EXPR '[' EXPR ']' { B "[]" $1 $3 }
 
 > LISTAONADA
->  : EXPRLIST { $1 }
+>  : POSITIONAL  { $1 }
+>  | BYNAMES { $1 }
+>  | POSITIONAL ',' BYNAMES { $1 ++ $3 }
 >  | { [] }
 
+> POSITIONAL
+>  : POSITIONAL ',' EXPR { $1 ++ [(Nothing, $3)]}
+>  | EXPR { [(Nothing, $1)] }
+
+> BYNAMES
+>  : BYNAMES ',' IDENT '=' EXPR  { $1 ++ [(Just $3, $5)] }
+>  | IDENT '=' EXPR { [(Just $1, $3)] }
 
 > EXPRLIST
->   : EXPRLIST ',' IDENT '=' EXPR { $1 ++ [(Just $3, $5)] }
->   | EXPRLIST ',' EXPR { $1 ++ [(Nothing, $3)] }
->   | EXPR { [(Nothing, $1)] }
->   | IDENT '=' EXPR { [(Just $1, $3)] }
+>   : EXPRLIST ',' EXPR { $1 ++ [$3] }
+>   | EXPR { [$1] }
 
-> RETURNP : RETURN EXPR { Return $2 }
-> CONTINUEP : CONTINUE { Continue }
-> BREAKP : BREAK { Break }
-
-> STRUCTDEF
->   : STRUCT IDENT '{' FIELDS '}' ';' { ($2, $4) }
+> RETURNP
+>   : RETURN ';' { Return Nothing }
+>   | RETURN EXPR ';' { Return (Just $2) }
 
 > FIELDS
 >   : FIELD { [$1] }
 >   | FIELDS ',' FIELD { $1 ++ [$3] }
 
 > FIELD
->   : LISTAIDENT ':' IDENT { ($1, $3) }
-
-> LISTAIDENT
->   : IDENT { [$1] }
->   | LISTAIDENT ',' IDENT { $1 ++ [$3]}
-
-> -- GLOBALVAR
-> --  : STATIC LISTAVARIABLES ':' IDENT ';' { LVarDeclaration Static $4 $2 }
-> --  | CONST LISTAVARIABLES ':' IDENT ';' { LVarDeclaration Const $4 $2 }
+>   : LISTAVARIABLES ':' TYPEN { ($3, $1) }
 
 > LISTAVARIABLES
 >   : IDENT INIT { [($1, $2)] }
 >   | LISTAVARIABLES ',' IDENT INIT { $1 ++ [($3, $4)] }
 
-
 > INIT
 >   : '=' EXPR { Just $2 }
 >   | {- empty -} { Nothing }
 
-> PRINTP : PRINT EXPRLIST { Print $2 }
-> GRABP : GRAB EXPR { Grab $2 }
+> PRINTP : PRINT EXPRLIST ';' { Print $2 }
+> GRABP : GRAB EXPR ';' { Grab $2 }
 
 > {
-> data Type = Type String | ArrayOf String [Maybe Expr] deriving (Show)
-> data Global = Function String [(String, Maybe Expr, Type)] Type [Instruction]
->              deriving (Show)
+
+> data Type = Type String
+>           | ArrayOf Type [Maybe Expr]
+>           | ReferenceTo Type
+>           | TypeStruct String ListOfDef
+>           | TypeUnion String ListOfDef
+>           | TypeEnum String [Initialization]
+>           deriving (Show)
+
+> data Global = GlobalVar VKind Type [Initialization]
+>             | TypeDef String Type
+>             | Function String [(String, Maybe Expr, Type)] Type [Instruction]
+>             | DefCombine Type
+>             deriving (Show)
+
 > data Expr = B String Expr Expr
 >           | U String Expr
 >           | Char String
@@ -243,15 +312,32 @@
 >           | Bool String
 >           | Str String
 >           | Var String
->           | FunctionCall Expr [Expr]
+>           | FunctionCall String [(Maybe String, Expr)]
 >           | TypeCast Expr String
 >           | R Expr Expr Expr
->              deriving (Show)
+>           deriving (Show)
 
-> data Instruction = VarDeclaration VKind Type [(String, Maybe Expr)]
->                  | Break | Continue | Return Expr
->                  | Print [Expr] | Grab Expr deriving (Show)
-> data VKind = VarKind | Const | Static deriving (Show)
-> type Initialization = Maybe Expr
-> happyError x = error "Error gramatical?"
+> data Instruction = LocalVar Type [Initialization]
+>                  | Assign String String Expr
+>                  | If [(Maybe Expr, [Instruction])]
+>                  | Loop [Instruction]
+>                  | While Expr [Instruction]
+>                  | For Type String Expr [Instruction]
+>                  | Break
+>                  | Continue
+>                  | Return (Maybe Expr)
+>                  | Print [Expr]
+>                  | Grab Expr
+>                  deriving (Show)
+
+> data VKind = VarKind
+>            | Const
+>            | Static
+>            deriving (Show)
+
+> type Initialization = (String, Maybe Expr)
+> type ListOfDef = [(Type, [Initialization])]
+
+> happyError x = error "Because I'm Happy...!"
+
 > }
