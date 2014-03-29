@@ -156,12 +156,16 @@
 >   | DIMENSIONS '[' EXPR ']' { $1 ++ [Just $3] }
 >   | DIMENSIONS '[' ']' { $1 ++ [Nothing] }
 
+> INSTONADA
+>  : { [] }
+>  | INSTLIST { $1 }
+
 > INSTLIST
 >   : INST { [$1] }
 >   | INSTLIST INST { $1 ++ [$2] }
 
 > BLOQUE
->   : '{' INSTLIST '}' { $2 }
+>   : '{' INSTONADA '}' { $2 }
 
 > INST
 >   : DEC { $1 }
