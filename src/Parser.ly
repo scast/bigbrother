@@ -1,5 +1,5 @@
 > {
-> module Parser (parseTokens, Ident(..), Global(..), VKind(..), Type(..), Instruction(..), Expr(..)) where
+> module Parser (parseTokens, Initialization(..), Ident(..), Global(..), VKind(..), Type(..), Instruction(..), Expr(..)) where
 > import Lexer
 > import Control.Monad.Writer
 > }
@@ -295,9 +295,9 @@
 > data Type = Type Ident
 >           | ArrayOf Type [Maybe Expr]
 >           | ReferenceTo Type
->           | TypeStruct Ident ListOfDef
->           | TypeUnion Ident ListOfDef
->           | TypeEnum Ident [Initialization]
+>           | TypeStruct { typeIdent :: Ident, listDef :: ListOfDef}
+>           | TypeUnion { typeIdent :: Ident, listDef :: ListOfDef}
+>           | TypeEnum { typeIdent :: Ident, init :: [Initialization]}
 >           deriving (Show)
 
 > data Global = GlobalVar VKind Type [Initialization]
@@ -333,7 +333,7 @@
 
 > data VKind = VarKind
 >            | Const
->            | Static
+>            | Static | EnumVar | ExtendedTypeVar
 >            deriving (Show, Ord, Eq)
 
 > type Initialization = (Ident, Maybe Expr)

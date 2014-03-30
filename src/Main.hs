@@ -19,23 +19,23 @@ imprimirSimbolos table = text "SIMBOLOS => " $$ M.foldl' f empty (mapping table)
 
 imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) =
   text "DECLARACION DE TIPO"
-  $$ text nombre
-  $$ if (l > 0 && c > 0)
+  $$ text ("nombre = " ++ nombre)
+  $$ (if (l > 0 && c > 0)
      then text ("ubicacion = " ++ (show l)++":"++(show c))
-     else empty
+     else empty)
   $$ if (M.null (mapping table)) then empty else prettySymbolTable table
 
 imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) =
   text "DECLARACION DE VARIABLE"
-  $$ text nombre
+  $$ text ("nombre = " ++ nombre)
   $$ (if (l > 0 && c > 0)
      then text ("ubicacion = " ++ (show l)++":"++(show c))
      else empty)
-  $$ text (show kind)
+  $$ text ("modificador = " ++ (show kind))
 
 imprimirSimbolo (Function (Parser.Ident nombre l c) table) =
   text "DECLARACION DE FUNCION"
-  $$ text nombre
+  $$ text ("nombre = " ++ nombre)
   $$ (if (l > 0 && c > 0)
      then text ("ubicacion = " ++ (show l)++":"++(show c))
      else empty)

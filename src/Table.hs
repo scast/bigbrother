@@ -16,6 +16,7 @@ data Extended = Struct | Enum | Union
 --           | Reference Type
 --           deriving (Show, Eq, Ord)
 
+
 data Symbol = TypeDeclaration Parser.Ident {- Type -} Table
             | Variable Parser.Ident Parser.VKind -- Type
             | Function Parser.Ident {- Type -} Table
@@ -103,7 +104,16 @@ checkExists name = do
     Just _ -> return ()
     Nothing -> tell ["Simbolo " ++ (name) ++ " no ha sido definido"]
 
+checkNotExists :: String -> Generator b () -> Generator b ()
+checkNotExists name callback = do
+  table <- gets (current)
+  track <- gets (path)
+  case symbolLookup ((mapping table):(map mapping track)) name of
+    Just _ -> tell ["Simbolo " ++ (name) ++ " ya ha sido definido"]
+    Nothing -> callback
+
 checkExpr :: Parser.Expr -> Generator b ()
+checkExpr (Parser.B "." l r) = checkExpr l
 checkExpr (Parser.B _ l r) = checkExpr l >> checkExpr r
 checkExpr (Parser.U _ u) = checkExpr u
 checkExpr (Parser.Char _) = return ()
@@ -212,6 +222,8 @@ buildTableGlobal' = do
   [global] <- ask
   case global of
     Parser.Function _ _ _  _ -> handleFunction global
+    Parser.DefCombine tipo@(Parser.TypeEnum _ _) -> handleEnum tipo
+    Parser.DefCombine tipo -> handleExtended tipo
     _ -> error "Snafu Situation. This really shouldn't happen..."
 
 handleFunction :: Parser.Global -> Generator [Parser.Global] ()
@@ -232,6 +244,24 @@ handleFunction (Parser.Function ident parameters ptype instList) = do
     getTypeOrError (getSimpleTypename ptype)
   -- Handle each instruction
   forM_ instList $ \inst -> handleInstruction inst
+
+handleEnum :: Parser.Type -> Generator [Parser.Global] ()
+handleEnum (Parser.TypeEnum ident inits) = do
+  forM_ inits $ \(tident@(Parser.Ident name _ _), init) -> do
+    checkNotExists name $
+      addVariable tident Parser.EnumVar (Parser.Type (Parser.Ident "int32" (-1) (-1)))
+
+handleExtended :: Parser.Type -> Generator [Parser.Global] ()
+handleExtended x = do
+  case x of
+    Parser.TypeStruct ident listDef -> handleListDef listDef
+    Parser.TypeUnion ident listDef ->  handleListDef listDef
+
+handleListDef :: [(Parser.Type, [Parser.Initialization])] -> Generator b ()
+handleListDef listDef = do
+  forM_ listDef $ \(tipo, inits) -> do
+    forM_ inits $ \(tident@(Parser.Ident name _ _), init) -> do
+      addVariable tident Parser.ExtendedTypeVar tipo
 
 recursiveInstructionBuild ntable instlist = do
   -- create a new table
@@ -314,8 +344,38 @@ build = do
                                               (mapping globalTable)}
                         }
                )
+      Parser.DefCombine tipo -> do
+        globalTable <- gets (current)
+        let (s, w) = buildTableGlobal [global] (GeneratorState emptyTable [globalTable, langTable])
+        tell w
+        let newSon = current s
+            currentSons = sons globalTable
+        modify (\s -> s { current =
+                             globalTable { sons = currentSons ++ [newSon ]
+                                         , mapping =
+                                              M.insert (Parser.identName
+                                                        (Parser.typeIdent tipo))
+                                              (TypeDeclaration (Parser.typeIdent
+                                                               tipo)
+                                               newSon)
+                                              (mapping globalTable)}
+                        }
+               )
+        addGlobals newSon
       _ -> return ()
   -- make the global table a son of langtable
   globalTable <- gets (current)
   track <- gets (path)
   modify (\s -> s { path = [] , current = (track !! 0) { sons = [globalTable ]}})
+
+-- takes enum variables or type definitions and copies them to the global table.
+addGlobals :: Table -> Generator b ()
+addGlobals newTable = do
+  let shallow = M.foldlWithKey f M.empty (mapping newTable)
+      f accum key x@(Variable _ Parser.EnumVar) = M.insert key x accum
+      f accum key x@(TypeDeclaration _ _) = M.insert key x accum
+      f accum _ _ = accum
+      ntSons = sons newTable
+  table <- gets (current)
+  modify (\s -> s { current = table { mapping = M.union (mapping table) shallow }})
+  mapM_ addGlobals ntSons
