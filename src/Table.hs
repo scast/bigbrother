@@ -109,7 +109,7 @@ checkNotExists name callback = do
   table <- gets (current)
   track <- gets (path)
   case symbolLookup ((mapping table):(map mapping track)) name of
-    Just _ -> tell ["Simbolo " ++ (name) ++ " ya ha sido definido"]
+    Just _ -> tell ["Simbolo " ++ (name) ++ " ya ha sido definido."]
     Nothing -> callback
 
 checkExpr :: Parser.Expr -> Generator b ()
@@ -175,7 +175,7 @@ addShallowType ptype = do
         Parser.TypeStruct id _ -> (id, Struct)
         Parser.TypeEnum id _ -> (id, Enum)
         Parser.TypeUnion id _ -> (id, Union)
-  check (Parser.identName ident) $ do
+  checkNotExists (Parser.identName ident) $ do
     let newSymbol = TypeDeclaration ident emptyTable
         name = Parser.identName ident
     modify (\s -> s { current = table { mapping = M.insert name newSymbol
@@ -187,6 +187,9 @@ symbolLookup tables symbolname = listToMaybe $ mapMaybe (M.lookup symbolname) ta
 getSimpleTypename (Parser.Type (Parser.Ident x _ _)) = x
 getSimpleTypename (Parser.ArrayOf x _) = getSimpleTypename x
 getSimpleTypename (Parser.ReferenceTo x ) = getSimpleTypename x
+getSimpleTypename (Parser.TypeStruct (Parser.Ident x _ _) _) = x
+getSimpleTypename (Parser.TypeEnum (Parser.Ident x _ _) _) = x
+getSimpleTypename (Parser.TypeUnion (Parser.Ident x _ _) _) = x
 
 -- Do a shallow pass over the global definitions and add them to the table
 shallowPass :: Generator [Parser.Global] ()
@@ -245,11 +248,12 @@ handleFunction (Parser.Function ident parameters ptype instList) = do
   -- Handle each instruction
   forM_ instList $ \inst -> handleInstruction inst
 
-handleEnum :: Parser.Type -> Generator [Parser.Global] ()
+handleEnum :: Parser.Type -> Generator b ()
 handleEnum (Parser.TypeEnum ident inits) = do
   forM_ inits $ \(tident@(Parser.Ident name _ _), init) -> do
     checkNotExists name $
       addVariable tident Parser.EnumVar (Parser.Type (Parser.Ident "int32" (-1) (-1)))
+
 
 handleExtended :: Parser.Type -> Generator b ()
 handleExtended x = do
@@ -260,8 +264,57 @@ handleExtended x = do
 handleListDef :: [(Parser.Type, [Parser.Initialization])] -> Generator b ()
 handleListDef listDef = do
   forM_ listDef $ \(tipo, inits) -> do
-    forM_ inits $ \(tident@(Parser.Ident name _ _), init) -> do
-      addVariable tident Parser.ExtendedTypeVar tipo
+    handleComplexType tipo $ do
+      forM_ inits $ \(tident@(Parser.Ident name _ _), init) -> do
+        addVariable tident Parser.ExtendedTypeVar tipo
+
+handleComplexType :: Parser.Type -> Generator b () -> Generator b ()
+handleComplexType tipo callback  = do
+  case tipo of
+    Parser.Type _ -> callback
+    Parser.ArrayOf x _ -> handleComplexType x callback
+    Parser.TypeEnum _ _ -> do
+      -- save this symbol
+      addShallowType tipo
+
+      -- build recursive table
+      table <- gets (current)
+      track <- gets (path)
+      let (s, w) = execRWS (handleEnum tipo) []
+                   (GeneratorState emptyTable (table:track))
+      tell w
+      let newSon = current s
+          currentSons = sons table
+      modify (\s -> s { current = table { sons = currentSons ++ [newSon]
+                                        , mapping =
+                                             M.insert (Parser.identName (Parser.typeIdent tipo))
+                                             (TypeDeclaration (Parser.typeIdent
+                                                               tipo) newSon)
+                                             (mapping table)
+                                        }
+                      }
+             )
+    _ -> do
+      -- save this symbol
+      addShallowType tipo
+
+      -- build recursive table
+      table <- gets (current)
+      track <- gets (path)
+      let (s, w) = execRWS (handleExtended tipo) []
+                   (GeneratorState emptyTable (table:track))
+      tell w
+      let newSon = current s
+          currentSons = sons table
+      modify (\s -> s { current = table { sons = currentSons ++ [newSon]
+                                        , mapping =
+                                             M.insert (Parser.identName (Parser.typeIdent tipo))
+                                             (TypeDeclaration (Parser.typeIdent
+                                                               tipo) newSon)
+                                             (mapping table)
+                                        }
+                      }
+             )
 
 recursiveInstructionBuild ntable instlist = do
   -- create a new table

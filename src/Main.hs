@@ -23,7 +23,7 @@ imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) =
   $$ (if (l > 0 && c > 0)
      then text ("ubicacion = " ++ (show l)++":"++(show c))
      else empty)
-  $$ if (M.null (mapping table)) then empty else prettySymbolTable table
+  -- $$ if (M.null (mapping table)) then empty else prettySymbolTable table
 
 imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) =
   text "DECLARACION DE VARIABLE"
@@ -39,7 +39,7 @@ imprimirSimbolo (Function (Parser.Ident nombre l c) table) =
   $$ (if (l > 0 && c > 0)
      then text ("ubicacion = " ++ (show l)++":"++(show c))
      else empty)
-  $$ prettySymbolTable table
+  -- $$ prettySymbolTable table
 
 imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)
   where f a b = a $$ nest 5 (prettySymbolTable b)
