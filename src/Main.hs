@@ -48,8 +48,8 @@ imprimirSimbolo (Function (Parser.Ident nombre l c) table) ubic =
      else empty)
   $$ (prettySymbolTable table ubic)
 
-imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)
-  where f a b = a $$ nest 5 (prettySymbolTable b)
+-- imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)
+--   where f a b = a $$ nest 5 (prettySymbolTable b)
 
 
 
