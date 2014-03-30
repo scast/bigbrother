@@ -3,7 +3,7 @@ import qualified Parser
 import qualified Data.Map as M
 import Control.Monad.RWS
 import Control.Monad
-import Data.Maybe (mapMaybe, listToMaybe)
+import Data.Maybe (mapMaybe, listToMaybe, catMaybes)
 
 
 data Extended = Struct | Enum | Union
@@ -245,6 +245,10 @@ handleFunction (Parser.Function ident parameters ptype instList) = do
       Nothing -> return ()
       Just expr -> checkExpr expr
     getTypeOrError (getSimpleTypename ptype)
+    case ptype of
+      Parser.ArrayOf tipo dims -> do let ndims = catMaybes dims
+                                     mapM_ checkExpr ndims
+      _ -> return ()
   -- Handle each instruction
   forM_ instList $ \inst -> handleInstruction inst
 
@@ -272,7 +276,10 @@ handleComplexType :: Parser.Type -> Generator b () -> Generator b ()
 handleComplexType tipo callback  = do
   case tipo of
     Parser.Type _ -> callback
-    Parser.ArrayOf x _ -> handleComplexType x callback
+    Parser.ArrayOf x dims -> do
+      handleComplexType x callback
+      let ndims = catMaybes dims
+      mapM_ checkExpr ndims
     Parser.TypeEnum _ _ -> do
       -- save this symbol
       addShallowType tipo

@@ -131,7 +131,7 @@ mkL c (p,_,_,str) len = return (Right (L p c (take len str)))
 showPosn (AlexPn _ line col) = show line ++ ':': show col
 
 mkE :: AlexInput -> Int -> Alex (Either LexError Lexeme)
-mkE (pos,_,_,str) len = return (Left ("Error lexico: encontrado '"++ (take len str) ++ "' (" ++ (showPosn pos) ++ ")"))
+mkE (pos,_,_,str) len = return (Left ("Error lexico: encontrado lexema inesperado '"++ (take len str) ++ "' (" ++ (showPosn pos) ++ ")"))
 
 alexEOF :: Alex (Either LexError Lexeme)
 alexEOF = return (Right (L undefined LEof ""))

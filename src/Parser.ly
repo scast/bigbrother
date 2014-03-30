@@ -139,10 +139,13 @@
 
 > TYPECOMBINE
 >   : STRUCT IDENT '{' FIELDS '}'                 { TypeStruct (saveIdent $2) $4 }
+>   | STRUCT IDENT '{' error '}'                 { TypeStruct (saveIdent $2) [] }
+>   | UNION IDENT '{' error '}'                 { TypeUnion (saveIdent $2) [] }
 >   | STRUCT IDENT '{' FIELDS '}' DIMENSIONS      { ArrayOf (TypeStruct (saveIdent $2) $4) $6 }
 >   | UNION IDENT '{' FIELDS '}'                  { TypeUnion (saveIdent $2) $4 }
 >   | UNION IDENT '{' FIELDS '}' DIMENSIONS       { ArrayOf (TypeUnion (saveIdent $2) $4) $6 }
 >   | ENUM IDENT '{' LISTAVARIABLES '}'           { TypeEnum (saveIdent $2) $4 }
+>   | ENUM IDENT '{' error '}'           { TypeEnum (saveIdent $2) [] }
 >   | ENUM IDENT '{' LISTAVARIABLES '}' DIMENSIONS { ArrayOf (TypeEnum (saveIdent $2) $4) $6 }
 
 > TYPESIMPLE
@@ -286,7 +289,7 @@
 >   :          { Nothing }
 >   | '=' EXPR { Just $2 }
 
-> PRINTP : PRINT EXPRLIST ';' { Print $2 }
+> PRINTP : PRINT EXPRLIST ';' {Print $2}
 
 > GRABP : GRAB EXPR ';' { Grab $2 }
 
@@ -347,12 +350,12 @@
 >     where (AlexPn _ line col) = a
 
 > type ParseError = String
-> type Parser = Either ParseError
+> type Parser = Either (ParseError, [Lexeme])
 
 > showPosn (AlexPn _ line col) = show line ++ ':': show col
 
 > happyError :: [Lexeme] -> Parser a
-> happyError tokens = Left $ "Snafu situation " ++ (show tokens)
+> happyError tokens = Left $ ("Error en reconocimiento: lexema inesperado", tokens)
 
 > parseTokens tokens = parser tokens
 
