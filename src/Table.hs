@@ -365,6 +365,7 @@ handleInstruction inst = do
       checkExpr expr
       recursiveInstructionBuild (Table newTable []) instlist
     Parser.Return (Just expr) -> checkExpr expr
+    Parser.VoidCall (Parser.Ident name _ _) _ -> checkExists name
     _ -> return ()
 
 

@@ -9,39 +9,44 @@ import System.Console.ANSI
 import qualified Data.Map as M
 import Data.List (intercalate)
 
-prettySymbolTable :: Table -> Doc
-prettySymbolTable table
-  = braces (
-    imprimirSimbolos table
-    $$ imprimirHijos table
-    )
+prettySymbolTable :: Table -> Int -> Doc
+prettySymbolTable table ubic
+  = (text "{")
+  $$ (imprimirSimbolos table (ubic+1))
+  $$ (imprimirHijos table (ubic+1))
+  $$ (text "}")
 
-imprimirSimbolos table = text "SIMBOLOS => " $$ M.foldl' f empty (mapping table)
-  where f a b = a $$ nest 5 (braces (imprimirSimbolo b))
+imprimirSimbolos table ubic = text "Symbols:" $$ M.foldl' f empty (mapping table)
+  where f a b = a $$ nest 3 (imprimirSimbolo b ubic)
 
-imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) =
-  text "DECLARACION DE TIPO"
-  $$ text ("nombre = " ++ nombre)
-  $$ (if (l > 0 && c > 0)
-     then text ("ubicacion = " ++ (show l)++":"++(show c))
+imprimirHijos table ubic =
+  if (ubic==2) then empty
+    else text "Sons:" $$ foldl f empty (sons table)
+      where f a b = a $$ nest 3 (prettySymbolTable b ubic)
+
+imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) ubic =
+  text "Type => "
+  <> text (nombre ++ " ")
+  <> if (l > 0 && c > 0)
+     then brackets (text ((show l) ++ ":" ++ (show c)))
+     else empty
+  $$ if (M.null (mapping table)) then empty else (prettySymbolTable table ubic)
+
+imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) _ =
+  text "Variable => "
+  <> text (nombre ++ " ")
+  <> (if (l > 0 && c > 0)
+     then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
-  -- $$ if (M.null (mapping table)) then empty else prettySymbolTable table
+  <> text (" " ++ show kind)
 
-imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) =
-  text "DECLARACION DE VARIABLE"
-  $$ text ("nombre = " ++ nombre)
-  $$ (if (l > 0 && c > 0)
-     then text ("ubicacion = " ++ (show l)++":"++(show c))
+imprimirSimbolo (Function (Parser.Ident nombre l c) table) ubic =
+  text "Function => "
+  <> text (nombre ++ " ")
+  <> (if (l > 0 && c > 0)
+     then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
-  $$ text ("modificador = " ++ (show kind))
-
-imprimirSimbolo (Function (Parser.Ident nombre l c) table) =
-  text "DECLARACION DE FUNCION"
-  $$ text ("nombre = " ++ nombre)
-  $$ (if (l > 0 && c > 0)
-     then text ("ubicacion = " ++ (show l)++":"++(show c))
-     else empty)
-  -- $$ prettySymbolTable table
+  $$ (prettySymbolTable table ubic)
 
 imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)
   where f a b = a $$ nest 5 (prettySymbolTable b)
@@ -102,4 +107,4 @@ main = do
   let (st, w) = execRWS build tree (GeneratorState emptyTable [])
   setSGR [SetColor Foreground Dull White]
   mapM_ putStrLn w
-  putStrLn $ render $ prettySymbolTable (current st)
+  putStrLn $ render $ prettySymbolTable (current st) 0
