@@ -251,7 +251,7 @@ handleEnum (Parser.TypeEnum ident inits) = do
     checkNotExists name $
       addVariable tident Parser.EnumVar (Parser.Type (Parser.Ident "int32" (-1) (-1)))
 
-handleExtended :: Parser.Type -> Generator [Parser.Global] ()
+handleExtended :: Parser.Type -> Generator b ()
 handleExtended x = do
   case x of
     Parser.TypeStruct ident listDef -> handleListDef listDef
@@ -284,8 +284,8 @@ handleInstruction inst = do
         case init of
           Nothing -> return ()
           Just expr -> checkExpr expr
-    Parser.Assign _ (Parser.Ident name _ _) expr ->
-      void (checkExists name >>  checkExpr expr)
+    Parser.Assign _ left expr ->
+      void (checkExpr left >>  checkExpr expr)
     Parser.Grab expr ->
       checkExpr expr
     Parser.Print exprlist ->

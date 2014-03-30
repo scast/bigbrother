@@ -197,19 +197,19 @@
 >   | FOR TYPESIMPLEREF IDENT ':' EXPR BLOQUE { For $2 (saveIdent $3) $5 $6 }
 
 > ASIGNACION
->   : IDENT '=' EXPR   { Assign "="  (saveIdent $1) $3 }
->   | IDENT '+=' EXPR  { Assign "+"  (saveIdent $1) $3 }
->   | IDENT '-=' EXPR  { Assign "-"  (saveIdent $1) $3 }
->   | IDENT '*=' EXPR  { Assign "*"  (saveIdent $1) $3 }
->   | IDENT '/=' EXPR  { Assign "/"  (saveIdent $1) $3 }
->   | IDENT '%=' EXPR  { Assign "%"  (saveIdent $1) $3 }
->   | IDENT '>>=' EXPR { Assign ">>" (saveIdent $1) $3 }
->   | IDENT '<<=' EXPR { Assign "<<" (saveIdent $1) $3 }
->   | IDENT '&=' EXPR  { Assign "&"  (saveIdent $1) $3 }
->   | IDENT '|=' EXPR  { Assign "|"  (saveIdent $1) $3 }
->   | IDENT '^=' EXPR  { Assign "^"  (saveIdent $1) $3 }
->   | IDENT '&&=' EXPR { Assign "&&" (saveIdent $1) $3 }
->   | IDENT '||=' EXPR { Assign "||" (saveIdent $1) $3 }
+>   : EXPR '=' EXPR   { Assign "="  $1 $3 }
+>   | EXPR '+=' EXPR  { Assign "+"  $1 $3 }
+>   | EXPR '-=' EXPR  { Assign "-"  $1 $3 }
+>   | EXPR '*=' EXPR  { Assign "*"  $1 $3 }
+>   | EXPR '/=' EXPR  { Assign "/"  $1 $3 }
+>   | EXPR '%=' EXPR  { Assign "%"  $1 $3 }
+>   | EXPR '>>=' EXPR { Assign ">>" $1 $3 }
+>   | EXPR '<<=' EXPR { Assign "<<" $1 $3 }
+>   | EXPR '&=' EXPR  { Assign "&"  $1 $3 }
+>   | EXPR '|=' EXPR  { Assign "|"  $1 $3 }
+>   | EXPR '^=' EXPR  { Assign "^"  $1 $3 }
+>   | EXPR '&&=' EXPR { Assign "&&" $1 $3 }
+>   | EXPR '||=' EXPR { Assign "||" $1 $3 }
 
 > EXPR
 >   : CHAR                     { Char $1 }
@@ -319,7 +319,7 @@
 >           deriving (Show)
 
 > data Instruction = LocalVar Type [Initialization]
->                  | Assign String Ident Expr
+>                  | Assign String Expr Expr
 >                  | If [(Maybe Expr, [Instruction])]
 >                  | Loop [Instruction]
 >                  | While Expr [Instruction]
