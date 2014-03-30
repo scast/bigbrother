@@ -166,17 +166,20 @@
 > BLOQUE : '{' INSTONADA '}' { $2 }
 
 > INST
->   : DEC            { $1 }
+>   : DEC ';'        { $1 }
 >   | ASIGNACION ';' { $1 }
 >   | SELECTOR       { $1 }
 >   | LOOPING        { $1 }
->   | RETURNP        { $1 }
+>   | RETURNP ';'    { $1 }
 >   | CONTINUE ';'   { Continue }
 >   | BREAK ';'      { Break }
->   | PRINTP         { $1 }
->   | GRABP          { $1 }
+>   | PRINTP ';'     { $1 }
+>   | GRABP ';'      { $1 }
+>   | VOIDCALL ';'   { $1 }
 
-> DEC : VAR LISTAVARIABLES ':' TYPESIMPLE ';' { LocalVar $4 $2 }
+> VOIDCALL : IDENT '(' LISTAONADA ')' { VoidCall (saveIdent $1) $3 }
+
+> DEC : VAR LISTAVARIABLES ':' TYPESIMPLE { LocalVar $4 $2 }
 
 > DECKIND
 >   : VAR    { VarKind }
@@ -269,8 +272,8 @@
 >   | EXPR              { [$1] }
 
 > RETURNP
->   : RETURN ';'      { Return Nothing }
->   | RETURN EXPR ';' { Return (Just $2) }
+>   : RETURN      { Return Nothing }
+>   | RETURN EXPR { Return (Just $2) }
 
 > FIELDS
 >   : FIELD            { [$1] }
@@ -286,9 +289,9 @@
 >   :          { Nothing }
 >   | '=' EXPR { Just $2 }
 
-> PRINTP : PRINT EXPRLIST ';' { Print $2 }
+> PRINTP : PRINT EXPRLIST { Print $2 }
 
-> GRABP : GRAB EXPR ';' { Grab $2 }
+> GRABP : GRAB EXPR { Grab $2 }
 
 > {
 
@@ -329,6 +332,7 @@
 >                  | Return (Maybe Expr)
 >                  | Print [Expr]
 >                  | Grab Expr
+>                  | VoidCall Ident [(Maybe Ident, Expr)]
 >                  deriving (Show)
 
 > data VKind = VarKind
