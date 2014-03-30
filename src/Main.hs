@@ -1,14 +1,60 @@
 module Main where
-import Parser
+import qualified Parser
 import Lexer
 import Table
-import Control.Monad.RWS
+import System.Environment
+import Control.Monad.RWS hiding ((<>))
+import Text.PrettyPrint
+import qualified Data.Map as M
 
+prettySymbolTable :: Table -> Doc
+prettySymbolTable table
+  = braces (
+    imprimirSimbolos table
+    $$ imprimirHijos table
+    )
 
-tokens =  snd $ lexer "static x, y, z : int;"
+sinHijos table
+  = braces (imprimirSimbolos table)
 
-globals = parseTokens $ snd $ lexer "type jojojo = int; fn fun():jojojo { if (x > 0 ) { print! X; } }"
-buildTable (Right globals) = execRWS build globals (GeneratorState emptyTable [])
+imprimirSimbolos table = text "SIMBOLOS => " $$ M.foldl' f empty (mapping table)
+  where f a b = a $$ nest 5 (braces (imprimirSimbolo b))
+
+imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) =
+  text "DECLARACION DE TIPO"
+  $$ text nombre
+  $$ if (l > 0 && c > 0)
+     then text ("ubicacion = " ++ (show l)++":"++(show c))
+     else empty
+  $$ if (M.null (mapping table)) then empty else prettySymbolTable table
+
+imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) =
+  text "DECLARACION DE VARIABLE"
+  $$ text nombre
+    $$ if (l > 0 && c > 0)
+     then text ("ubicacion = " ++ (show l)++":"++(show c))
+     else empty
+  $$ text (show kind)
+
+imprimirSimbolo (Function (Parser.Ident nombre l c) table) =
+  text "DECLARACION DE FUNCION"
+  $$ text nombre
+  $$ if (l > 0 && c > 0)
+     then text ("ubicacion = " ++ (show l)++":"++(show c))
+     else empty
+  $$ prettySymbolTable table
+
+imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)
+  where f a b = a $$ nest 5 (prettySymbolTable b)
 
 main = do
-  putStrLn "Hola"
+  [file] <- getArgs
+  s <- readFile file
+  -- run lexer
+  let (errors, tokens) = lexer s
+  mapM_ putStrLn errors
+  -- run parser
+  let Right tree = Parser.parseTokens tokens
+      (st, w) = execRWS build tree (GeneratorState emptyTable [])
+  mapM_ putStrLn w
+  putStrLn $ render $ prettySymbolTable (current st)

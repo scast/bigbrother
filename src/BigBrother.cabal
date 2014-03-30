@@ -60,7 +60,7 @@ executable BigBrother
   other-extensions:    CPP
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.6 && <4.7, array >=0.4 && <0.5, mtl, containers
+  build-depends:       base >=4.6 && <4.7, array >=0.4 && <0.5, mtl, containers, pretty
   
   -- Directories containing source files.
   hs-source-dirs:      .

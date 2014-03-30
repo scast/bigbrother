@@ -1,4 +1,4 @@
-module Table (build, emptyTable, GeneratorState(..)) where
+module Table (build, emptyTable, GeneratorState(..), Symbol(..), Table(..)) where
 import qualified Parser
 import qualified Data.Map as M
 import Control.Monad.RWS
@@ -216,10 +216,10 @@ buildTableGlobal' = do
 
 handleFunction :: Parser.Global -> Generator [Parser.Global] ()
 handleFunction (Parser.Function ident parameters ptype instList) = do
-  table <- gets (current)
   -- add parameters if at all possible.
   forM_ parameters $ \(pident, init, ptype) -> do
     check (Parser.identName pident) $ do
+      table <- gets (current)
       let newSymbol = Variable pident Parser.VarKind
       modify (\s -> s { current = table {
                            mapping = M.insert (Parser.identName pident)
@@ -284,7 +284,8 @@ buildTableInstruction :: [Parser.Instruction] -> GeneratorState
 buildTableInstruction = execRWS buildTableInstruction'
 
 buildTableInstruction' = do
-  return ()
+  instList <- ask
+  forM_ instList $ \inst -> handleInstruction inst
 
 -- Build the symbol table
 build :: Generator [Parser.Global] ()
