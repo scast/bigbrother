@@ -1,5 +1,5 @@
 > {
-> module Parser (parseTokens) where
+> module Parser (parseTokens, Ident(..), Global(..), VKind(..), Type(..), Instruction(..), Expr(..)) where
 > import Lexer
 > import Control.Monad.Writer
 > }
@@ -334,13 +334,17 @@
 > data VKind = VarKind
 >            | Const
 >            | Static
->            deriving (Show)
+>            deriving (Show, Ord, Eq)
 
 > type Initialization = (Ident, Maybe Expr)
 > type ListOfDef = [(Type, [Initialization])]
 >
 
-> data Ident = Ident String Int Int deriving (Show)
+> data Ident = Ident {identName :: String ,
+>                      line :: Int,
+>                      column :: Int}
+>             deriving (Show, Ord, Eq)
+
 > saveIdent :: Lexeme -> Ident
 > saveIdent (L a l s) = Ident s line col
 >     where (AlexPn _ line col) = a
