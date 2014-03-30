@@ -14,9 +14,6 @@ prettySymbolTable table
     $$ imprimirHijos table
     )
 
-sinHijos table
-  = braces (imprimirSimbolos table)
-
 imprimirSimbolos table = text "SIMBOLOS => " $$ M.foldl' f empty (mapping table)
   where f a b = a $$ nest 5 (braces (imprimirSimbolo b))
 
@@ -31,17 +28,17 @@ imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) =
 imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) =
   text "DECLARACION DE VARIABLE"
   $$ text nombre
-    $$ if (l > 0 && c > 0)
+  $$ (if (l > 0 && c > 0)
      then text ("ubicacion = " ++ (show l)++":"++(show c))
-     else empty
+     else empty)
   $$ text (show kind)
 
 imprimirSimbolo (Function (Parser.Ident nombre l c) table) =
   text "DECLARACION DE FUNCION"
   $$ text nombre
-  $$ if (l > 0 && c > 0)
+  $$ (if (l > 0 && c > 0)
      then text ("ubicacion = " ++ (show l)++":"++(show c))
-     else empty
+     else empty)
   $$ prettySymbolTable table
 
 imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)

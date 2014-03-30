@@ -113,7 +113,7 @@
 
 > FUNCION
 >   : FN IDENT '(' PARLISTONADA ')' ':' TYPESIMPLE BLOQUE { Function (saveIdent $2) $4 $7 $8 }
->   | FN IDENT '(' PARLISTONADA ')' BLOQUE { Function (saveIdent $2) $4 (Type $ Ident "void") $6 }
+>   | FN IDENT '(' PARLISTONADA ')' BLOQUE { Function (saveIdent $2) $4 (Type $ (Ident "void" (-1) (-1))) $6 }
 
 > PARLISTONADA
 >   :                           { [] }
@@ -339,12 +339,11 @@
 > type Initialization = (Ident, Maybe Expr)
 > type ListOfDef = [(Type, [Initialization])]
 
-> data Ident = Ident String
->            | DeclaredIdent { identName :: String, line :: Int, column :: Int }
+> data Ident = Ident { identName :: String, line :: Int, column :: Int }
 >             deriving (Show, Ord, Eq)
 
 > saveIdent :: Lexeme -> Ident
-> saveIdent (L a l s) = DeclaredIdent s line col
+> saveIdent (L a l s) = Ident s line col
 >     where (AlexPn _ line col) = a
 
 > type ParseError = String
