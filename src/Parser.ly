@@ -143,13 +143,13 @@
 >   | STRUCT IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"struct " ++ (str $2) ++ " { \" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++ ")"]  >> returnM (TypeStruct (saveIdent $2) []) }
 >   | UNION IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"union " ++ (str $2) ++ " { \" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++ ")"]  >> returnM (TypeUnion (saveIdent $2) []) }
 -- >   | UNION IDENT '{' error '}'                 { TypeUnion (saveIdent $2) [] }
->   | STRUCT IDENT '{' FIELDS '}' DIMENSIONS      {% returnM  ( ArrayOf (TypeStruct (saveIdent $2) $4) $6 ) }
+-- >   | STRUCT IDENT '{' FIELDS '}' DIMENSIONS      {% returnM  ( ArrayOf (TypeStruct (saveIdent $2) $4) $6 ) }
 >   | UNION IDENT '{' FIELDS '}'                  {% returnM  ( TypeUnion (saveIdent $2) $4 ) }
->   | UNION IDENT '{' FIELDS '}' DIMENSIONS       {% returnM  ( ArrayOf (TypeUnion (saveIdent $2) $4) $6 ) }
+-- >   | UNION IDENT '{' FIELDS '}' DIMENSIONS       {% returnM  ( ArrayOf (TypeUnion (saveIdent $2) $4) $6 ) }
 >   | ENUM IDENT '{' LISTAVARIABLES '}'           {% returnM  ( TypeEnum (saveIdent $2) $4 ) }
 >   | ENUM IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"enum " ++ (str $2) ++ " { \" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++ ")"]  >> returnM (TypeUnion (saveIdent $2) []) }
 -- >   | ENUM IDENT '{' error '}'           { TypeEnum (saveIdent $2) [] }
->   | ENUM IDENT '{' LISTAVARIABLES '}' DIMENSIONS {% returnM  ( ArrayOf (TypeEnum (saveIdent $2) $4) $6 ) }
+-- >   | ENUM IDENT '{' LISTAVARIABLES '}' DIMENSIONS {% returnM  ( ArrayOf (TypeEnum (saveIdent $2) $4) $6 ) }
 
 > TYPESIMPLE
 >   : IDENT            {% returnM  ( Type $ saveIdent $1 ) }

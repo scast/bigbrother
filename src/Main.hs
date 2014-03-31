@@ -150,7 +150,7 @@ main = do
   -- run parser
   tree <- tryParse tokens
   let (st, w) = execRWS build tree (GeneratorState emptyTable [])
-  setSGR [SetColor Foreground Dull White]
+  setSGR [SetColor Foreground Vivid Red]
   mapM_ putStrLn w
-
+  setSGR [SetColor Foreground Vivid White]
   putStrLn $ render $ prettySymbolTable (current st) 0
