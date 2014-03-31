@@ -79,6 +79,14 @@ addLangSymbols = do
 -- buildType (Parser.Type _) (Just (TypeDeclaration x)) = Just x
 -- buildType (Parser.ArrayOf _ _) (Just (TypeDeclaration x) ) = Just (Array x)
 
+showPosSymbol :: Symbol -> String
+showPosSymbol (TypeDeclaration i _) = showPosIdent i
+showPosSymbol (Variable        i _) = showPosIdent i
+showPosSymbol (Function        i _) = showPosIdent i
+
+showPosIdent :: Parser.Ident -> String
+showPosIdent i = show (Parser.line i) ++ ":" ++ show (Parser.column i)
+
 getTypeOrError :: String -> Generator b (Maybe Symbol)
 getTypeOrError typename = do
   table <- gets (current)
@@ -92,7 +100,7 @@ check :: String -> Generator b () -> Generator b ()
 check name callback = do
   table <- gets (current)
   case M.lookup name (mapping table) of
-    Just symbol -> tell ["Simbolo " ++ (name) ++ " ya definido en este alcance"]
+    Just symbol -> tell ["Simbolo " ++ (name) ++ " ya definido en este alcance -> " ++ showPosSymbol symbol]
     Nothing -> callback
 
 --
@@ -109,7 +117,7 @@ checkNotExists name callback = do
   table <- gets (current)
   track <- gets (path)
   case symbolLookup ((mapping table):(map mapping track)) name of
-    Just _ -> tell ["Simbolo " ++ (name) ++ " ya ha sido definido."]
+    Just symbol -> tell ["Simbolo " ++ (name) ++ " ya ha sido definido -> " ++ showPosSymbol symbol]
     Nothing -> callback
 
 checkExpr :: Parser.Expr -> Generator b ()
@@ -136,7 +144,7 @@ checkAndPerform name ptype callback= do
   let typename = getSimpleTypename ptype
   ttipo <- getTypeOrError typename
   case (ttipo, M.lookup name (mapping table)) of
-    (_, Just _) -> tell ["Simbolo " ++ name ++ " ya definido en este alcance."]
+    (_, Just symbol) -> tell ["Simbolo " ++ name ++ " ya definido en este alcance -> " ++ showPosSymbol symbol]
     (Just tipo, Nothing) -> callback table
     (_, Nothing) -> return ()
 
