@@ -38,7 +38,6 @@ funciones, tipos extendidos y variables estáticas (posiblemente
 constantes).
 
 ~~~
-
 <declaración de variables, tipos, funciones>
 fn main(args: string[]) : int {
     <instrucciones>
