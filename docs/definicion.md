@@ -243,6 +243,8 @@ type double = float64;
 type float = float32;
 ~~~
 
+A momento de análisis estático el sobrenombre es elevado al alcance global, por lo que de existir algún otro identificador con el mismo nombre esto generará un error estático.
+
 
 Ejemplos
 --------
@@ -346,8 +348,13 @@ for int i: arr1[2..7] {
 }
 ~~~
 
-Estructuras de Datos
+Tipos de datos compuestos 
 ===================
+
+En BB se pueden definir un numero arbitrario de tipos de datos compuestos o extendidos. Sin embargo, como se ha mencionado, solo se puede hacer de forma global.
+
+Estructuras de datos
+--------------------
 
 Dentro de BB se pueden definir estructuras de datos similares
 a como ocurre en C.
@@ -355,12 +362,14 @@ a como ocurre en C.
 
 ~~~
 struct <nombre> {
-    <lista de variables_1>: <type_1>;
-    <lista de variables_2>: <type_2>;
+    <lista de variables_1>: <type_1>,
+    <lista de variables_2>: <type_2>,
     ...
-    <lista de variables_n>: <type_n>;
-}
+    <lista de variables_n>: <type_n>,
+};
 ~~~
+
+No se permite redeclarar ninguna variable en ningún punto. Durante el análisis sintáctico se eleva el identificador del tipo al alcance global, por lo que si existe algún otro identificador de alcance global con el mismo nombre resultará en un error estático.
 
 Una vez declarada la estructura, en cualquier punto del programa se
 puede declarar y a su vez inicializar sus campos utilizando la
@@ -395,9 +404,11 @@ enum <identificador> {
     <identificador valor 1>,
     <identificador valor 2>,
     ...,
-    <identificador valor n>;
-}
+    <identificador valor n>
+};
 ~~~
+
+No se puede repetir ningún identificador en ningún punto.
 
 Al hacer cast de un identificador a entero en este caso su valor
 corresponde a su posición en el rango `[0..n]`.
@@ -424,6 +435,8 @@ identificador, de no tener asignado un valor, corresponde al valor 0.
 El valor neutro de una enumeración corresponde siempre al valor neutro
 del identificador que aparece de primero.
 
+Durante el análisis estático los identificadores son elevados a alcance global, por lo que en caso de que a momento en que se registra el identificador ya existe algún otro identificador global (tipo, función, variable y posiblemente otros identificadores de enumeraciones) que tengan ese nombre no se registrará ese tipo.
+
 
 Uniones
 -------
@@ -433,15 +446,17 @@ utilizando la siguiente sintaxis:
 
 ~~~
 union <identificador> {
-    <identificador 1>: <tipo 1>;
-    <identificador 2>: <tipo 2>;
+    <identificador 1>: <tipo 1>,
+    <identificador 2>: <tipo 2>,
     ...
-    <identificador n>: <tipo n>;
-}
+    <identificador n>: <tipo n>,
+};
 ~~~
 
 El valor neutro de una unión corresponde siempre al valor neutro del
-tipo del identificador que aparece de primero.
+tipo del identificador que aparece de primero. 
+
+Durante el análisis sintáctico se eleva el identificador del tipo al alcance global, por lo que de existir algún otro identificador de alcance global con el mismo nombre, resultará en error estático.
 
 
 La semántica de la enumeración es funcionar como un una unión como en
@@ -456,7 +471,7 @@ Declaraciones "anónimas"
 
 En cualquier punto de una declaración de un tipo se puede agregar una
 declaración anónima. Sin embargo, esta declaración tiene que tener su
-identificador y definirá un tipo accesible en cualquier punto del programa.
+identificador y definirá un tipo accesible en cualquier punto del programa. Al igual que las declaraciones que no son anónimas, el identificador del tipo es elevado al alcance global por lo que de existir algún otro identificador de alcance global con el mismo nombre esto resultará en error.
 
 Ejemplos
 -------
@@ -495,6 +510,8 @@ fn main(args: string[]) {
 }
 ~~~
 
+No está permitido declarar arreglos con el uso de declaraciones anónimas. Exhortamos al desarrollador a declarar previamente el tipo antes de intentar usar un arreglo del mismo.
+
 
 Funciones y procedimientos
 ===========================
@@ -525,13 +542,11 @@ palabra clave `return`.
 El único caso en el que se puede (y se debe) obviar `<resultado>` es
 cuando la función es de tipo `void`.
 
-El pasado de parámetros por defecto es por valor para los tipos
-básicos y por referencia para los tipos extendidos y arreglos. Se
-puede forzar el pasado de parámetros por referencia en los tipos
-básicos utilizando los tipos especiales (y solo utilizables en este
+El pasado de parámetros por defecto es siempre por valor. Se
+puede forzar el pasado de parámetros por referencia en utilizando los tipos especiales (y solo utilizables en este
 contexto) que terminan con un `&`, por ejemplo, `int&`.
 
-Está permitido hacer llamadas recursivas de procedimientos.
+Está permitido hacer llamadas recursivas de procedimientos. Dado que el lenguaje permite referenciar cualquier cantidad de funciones que posiblemente no están definidas aún, se permite la recursión entre funciones mutuamente recursivas.
 
 Es posible declarar multiples veces la misma función o procedimiento
 siempre y cuando sus parámetros sean diferentes entre cualquier par de
@@ -665,7 +680,7 @@ cierran la instrucción. `<contents>` puede ser un arreglo o un rango.
 
 Durante la ejecución de la instrucción `for` con un arreglo o un rango
 definido sobre un arreglo como `<contents>` se puede utilizar el
-operador `#` para determinar el índice de `<contents>` actual.
+operador `@` para determinar el índice de `<contents>` actual.
 
 De igual manera, se puede utilizar las palabras clave `continue` y
 `break`. En el caso de `break` su funcionamiento es exactamente igual
@@ -685,7 +700,7 @@ for int i : 2..1000000 {
 
 ~~~
 for string s: args {
-    print! #{s}, " -> ", s;
+    print! @{s}, " -> ", s;
 }
 ~~~
 
