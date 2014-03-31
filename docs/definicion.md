@@ -1,32 +1,8 @@
-* Imperativo.
-* Tipos fuertes.
-* [X] void, bool, enteros, flotantes, caracteres y cadenas.
-* Alcance estático de bloques anidados.
-* [X] Selector.
-* [X] Iteración acotada.
-* [X] Iteración indeterminada.
-* [X] Pasaje por valor y por referencia
-  * [X] Tipos primitivos por valor o referencia.
-  * [X] Tipos agregados por referencia.
-* [X] Recursión.
-* [X] Estructuras arbitariamente anidadas (`struct` de C)
-* [X] Uniones arbitrariamente anidadas (`union` de C)
-* [X] Arreglos unidimensionales con índices arbitrarios
-* Read, write polimórficos para tipos primitivos.
+BigBrother: un lenguaje autocrático.
+====================================
 
-* [X} Arreglos multidimensionales base cero
-* [X] `break`, `continue`
-* etiquetas para bloques (goto, queremos esto?)
-* Seleccion múltiple (`case`) [redeclaracion]
-* Funciones con número variable de argumentos - funciones variádicas
-* [X] Tipos enumeración / subrango / integrado con iteraciones
-* Anidamiento de funciones -- implica cadena estática.
-* Pasaje de parámetros "raros".
-* Uniones con discriminante oculto.
-* Funciones de segunda clase.
-
-BB es un lenguaje imperativo fuertemente tipeado basado en la sintaxis
-de C e inspirado con ideas de Rust y D.
+BigBrother (corto conocido BB, o bebé) es un lenguaje imperativo fuertemente tipeado basado en la sintaxis
+de C e inspirado con ideas un poco más modernas provenientes de lenguajes como Rust y D.
 
 Estructura General
 ==================
@@ -42,24 +18,25 @@ constantes).
 fn main(args: string[]) : int {
     <instrucciones>
 }
-<declaracón de variables, tipos y funciones>
+<declaración de variables, tipos y funciones>
 ~~~
 
 El tipo de la función de retorno de la función `main` puede ser `int`
 o `void`. En el caso de ser `void` el programa siempre retornara un
-código de salida exitoso.
+código de salida exitoso al sistema operativo. En caso contrario retornara al sistema operativo el valor retornado por la función.
 
 Alcances y Bloques
 ==================
 
 BB es un lenguaje de alcance estático. El alcance dentro de BB está
-definido por bloques demarcados por `{` y `}`.
+definido por bloques demarcados por `{` y `}`. Un caso especial de esto es la definición global que se encuentra afuera de cualquier declaración de función.
 
 ~~~
+// declaraciones globales
 const X = 65536:int;
-fn main(args: string[]) {
+fn main(args: string[]) { // <--- define alcance
     var x=0, y=1, z=1 : int;
-    {
+    if (x > 0) { // <-- define alcance
         var x = 10 : int;
         print! "El valor de x es ", x; //  10
     }
@@ -71,9 +48,8 @@ fn main(args: string[]) {
 Redeclarar una variable en el mismo alcance no está
 permitido.
 
-Para definiciones de alcance global, y solo para definiciones
-globales, se puede referenciar a variables, funciones o procedimientos
-que no se han declarado todavía.
+Dentro de funciones, y solo dentro de funciones, se puede referenciar a variables, funciones o procedimientos
+que no se han declarado todavía en el alcance global.
 
 ~~~
 fn main(args: string[]) {
@@ -91,6 +67,7 @@ fn imprime_hola(quien: args) {
 const X = 17:int;
 ~~~
 
+Internamente, el analizador estático realiza una pasada superficial y manteniendo una bitácora de los identificadores de tipo, variables y funciones conseguidos en el alcance global.
 
 Tipos
 =====
@@ -114,10 +91,10 @@ Tipos básicos
 Los tipos básicos que define el lenguaje son booleanos, enteros,
 flotantes y caracteres.
 
-Modificadores
--------------
+Tipos de variables
+--------------------
 
-Al tiempo de declaración de variables globales, se pueden asignar los
+Al tiempo de declaración de variables, se pueden asignar los
 siguientes modificadores antes del tipo. Para cualquier tipo se puede
 utilizar:
 
@@ -132,18 +109,30 @@ var hola:int;
 static mundo:double;
 const fin = "fin":string;
 
+fn correme() {
+     static miVariable=0:int;
+     miVariable += 1;
+    print! miVariable; 
+}
+
 fn main(args: string[]) {
     print! "Hola Mundo";
+    correme(); //prints 1
+    correme(); // prints 2
 }
 ~~~
+
 
 Tipos booleanos
 ---------------
 
-Los tipos booleanos solo pueden tomar valores `true` o `false`. Sus
+Los tipos booleanos (identificados con el tipo primitivo bool) solo pueden tomar valores `true` o `false`. Sus
 operadores son los operadores normales `&&` (and), `||` (or), `!` (not), y `^` (xor)
 respectivamente. Dos valores booleanos se pueden comparar utilizando
 los operadores de comparación `==`, `!=`, `>`, `>=`, `<`, `<=`.
+
+Los siguientes operadores de asignación están definidos: `||=`, `&&=`.
+
 
 Al momento de declaración, en caso de obviar el valor inicial, se
 inicializan a su valor neutro `false`.
@@ -152,7 +141,7 @@ En este documento al referirnos a una condición nos referimos siempre
 a una expresión booleana.
 
 Tipos numéricos
----------------
+--------------------------
 
 Los tipos numéricos dentro del lenguaje son los enteros denotados por
 int16, int32 e int64 y por números flotantes denotados por float32 y
@@ -174,19 +163,19 @@ El punto flotante se denota con el `.`. Para referirnos a números flotantes se 
 - Notación decimal: 0, 1, 1, 2.0, 3.0, 5, 8, 17.325...
 - Notación científica: 6.022e23, 1.5e-4 ...
 
-Los siguientes operadores aritméticos están definidos: `+`, `-`, `*`, `/`,
-`\*\*` (exponenciación), `%` (módulo).
+Los siguientes operadores aritméticos están definidos para todos los tipos numéricos: `+`, `-`, `*`, `/`,
+`**` (exponenciación), `%` (módulo).
 
-Los siguientes operadores de comparación están definidos: `==`, `!=`, `>`,
+Los siguientes operadores de comparación están definidos para todos los tipos numéricos: `==`, `!=`, `>`,
 `<`, `>=`, `<=`.
 
 Los siguientes operadores de bits están definidos: `&` (and), `|` (or),
 `^` (xor), `~` (not), `>>`, `<<`.
 
 Los siguientes operadores de asignación están definidos: `=`, `*=`, `/=`, `%=`, `+=`,
-`-=`, `>>=`, `<<=`, `&=`, `^=`, `|=`, `\*\*=`.
+`-=`, `>>=`, `<<=`, `&=`, `^=`, `|=`, `**=`.
 
-Además, se cuenta con un operador unario prefijo caracter % el cual
+Además, se cuenta con un operador unario prefijo caracter `@` el cual
 devuelve el caracter cuya representación en ASCII es el entero,
 siempre y cuando este dentro de la tabla ASCII --- de lo contrario,
 debe ocurrir un error.
@@ -199,15 +188,8 @@ neutro es `'\0'`. Para referirnos a un carácter utilizamos comillas
 simples.
 
 Los carácteres tienen un solo operador unario prefijo de ordenamiento
-\#: dado un caracter, devuelve su posición en la tabla ASCII.
+`#`: dado un caracter, devuelve su posición en la tabla ASCII.
 
-<!-- Cadenas de Caracteres -->
-<!-- --------------------- -->
-
-Tablas de Precedencia
-----------------------
-
-Tabla aca.
 
 Conversiones entre tipos básicos
 --------------------------------
@@ -239,21 +221,9 @@ Algunas conversiones ocurren automáticamente entre tipos numéricos:
 
 ~~~
 var x = 32 : float64; // 32.0
-var y = 15. : int64; // 15
+var y = 15.0 : int64; // 15
 ~~~
 
-Ejemplos
---------
-
-`true or false // == true`
-
-`true and false // == false`
-
-`true == false // == false`
-
-`true > false // == true`
-
-`not true // == false`
 
 Sobrenombres
 ============
@@ -291,7 +261,7 @@ Esto define un rango desde inicial (incluyéndolo) hasta final
 
 Para variar el paso, se puede utilizar la notación extendida:
 
-`<inicial>, <inicial>+<paso>.., <final>`
+`<inicial>..<final> by <paso>`
 
 Los rangos no representan un tipo concreto dentro del lenguaje. Son un
 atajo para operaciones comunes, no se pueden asignar, no se pueden
@@ -303,7 +273,7 @@ Ejemplos
 
 `0..10 // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]`
 
-`0,2..10 // [0, 2, 4, 6, 8]`
+`0..10 by 2 // [0, 2, 4, 6, 8]`
 
 
 Arreglos
@@ -342,6 +312,7 @@ particular:
 Se cuenta con los siguientes operadores para trabajar con arreglos:
 
 - `#arreglo` retorna la dimensión más externa del arreglo
+- `@arreglo` retorna la posición actual de iteración. Más sobre esto en la sección de iteración determinada.
 - Para acceder un indice se utiliza el operador `[]` como en C.
 - `arreglo[RANGO]` devuelve un rango con los elementos entre los elementos de RANGO.
 
@@ -366,7 +337,7 @@ arr1 = -1;
 var arr5 = -1 : int[10];
 
 print! arr1[0]; // imprime -1
-arr1[0] = 1; // asigna 1.
+arr1[0] = 1; // asigna 1 en la primera posicion del arreglo.
 
 for int i: arr1[2..7] {
     for int j: arr2[5..8] {
@@ -374,8 +345,6 @@ for int i: arr1[2..7] {
     }
 }
 ~~~
-
-
 
 Estructuras de Datos
 ===================
@@ -400,7 +369,6 @@ sintaxis común en C++:
 ~~~
 var <id_1>(<valores para cada tipo en orden en que fueron declarados>): <nombre>;
 ~~~
-
 
 En caso de obviar la inicialización, se toma el valor neutro de todos
 sus campos. En caso de que el campo sea también una estructura de
@@ -720,3 +688,9 @@ for string s: args {
     print! #{s}, " -> ", s;
 }
 ~~~
+
+
+Tablas de Precedencia
+----------------------
+
+Tabla aca.
