@@ -40,9 +40,8 @@ constantes).
 ~~~
 
 <declaración de variables, tipos, funciones>
-fn main(args: string[]): int {
-    [declaracion de variables]
-    <instrucción>
+fn main(args: string[]) : int {
+    <instrucciones>
 }
 <declaracón de variables, tipos y funciones>
 ~~~
@@ -58,7 +57,7 @@ BB es un lenguaje de alcance estático. El alcance dentro de BB está
 definido por bloques demarcados por `{` y `}`.
 
 ~~~
-const int X = 65536;
+const X = 65536:int;
 fn main(args: string[]) {
     var x=0, y=1, z=1 : int;
     {
@@ -79,10 +78,10 @@ que no se han declarado todavía.
 
 ~~~
 fn main(args: string[]) {
-    string nombre;
+    var nombre:string;
     print! "Dime tu nombre: ";
     grab! nombre;
-    imprime_hola(nombre); // imprime Hola mundo.
+    imprime_hola(nombre); // imprime tu nombre
     print! "X = ", X; // 17
 }
 
@@ -90,14 +89,14 @@ fn imprime_hola(quien: args) {
     print ! "Hola", quien;
 }
 
-const X = 17;
+const X = 17:int;
 ~~~
 
 
 Tipos
 =====
 
-Dentro de BB todo variable declarada siempre tiene un valor y
+Dentro de BB toda variable declarada siempre tiene un valor y
 un tipo. Al declarar una variable se puede inicializar su valor o en
 caso contrario se asignara un valor neutro. Los valores neutros para
 los distintos tipos se definen en las secciones subsiguientes.
@@ -119,7 +118,7 @@ flotantes y caracteres.
 Modificadores
 -------------
 
-Al tiempo de declaración de variables, se pueden asignar los
+Al tiempo de declaración de variables globales, se pueden asignar los
 siguientes modificadores antes del tipo. Para cualquier tipo se puede
 utilizar:
 
@@ -129,14 +128,21 @@ utilizar:
   puede modificar alguno de sus campos (a menos que este sea
   constante).
 
-Los tipos numéricos enteros definen el modificador `unsigned`.
+~~~
+var hola:int;
+static mundo:double;
+const fin = "fin":string;
+
+fn main(args: string[]) {
+    print! "Hola Mundo";
+}
+~~~
 
 Tipos booleanos
 ---------------
 
 Los tipos booleanos solo pueden tomar valores `true` o `false`. Sus
-operadores son los operadores normales `and`, `or`, `not`, y
-`xor`. Estos también se pueden utilizar como `&&`, `||`, `!`, y `^`
+operadores son los operadores normales `&&` (and), `||` (or), `!` (not), y `^` (xor)
 respectivamente. Dos valores booleanos se pueden comparar utilizando
 los operadores de comparación `==`, `!=`, `>`, `>=`, `<`, `<=`.
 
@@ -169,21 +175,17 @@ El punto flotante se denota con el `.`. Para referirnos a números flotantes se 
 - Notación decimal: 0, 1, 1, 2.0, 3.0, 5, 8, 17.325...
 - Notación científica: 6.022e23, 1.5e-4 ...
 
-Para los números enteros se puede utilizar el modificador `unsigned`
-para declararlo como entero sin signo.
+Los siguientes operadores aritméticos están definidos: `+`, `-`, `*`, `/`,
+`\*\*` (exponenciación), `%` (módulo).
 
-Los siguientes operadores aritméticos están definidos: +, -, *, /,
-\*\* (exponenciación), % (módulo). Los siguientes operadores de
-incremento y decremento estan definidos: ++, --.
+Los siguientes operadores de comparación están definidos: `==`, `!=`, `>`,
+`<`, `>=`, `<=`.
 
-Los siguientes operadores de comparación están definidos: ==, !=, >,
-<, >=, <=.
+Los siguientes operadores de bits están definidos: `&` (and), `|` (or),
+`^` (xor), `~` (not), `>>`, `<<`.
 
-Los siguientes operadores de bits están definidos: and (sobrenombre
-&), or (sobrenombre |), xor (sobrenombre ^), not (sobrenombre ~), >>, <<.
-
-Los siguientes operadores de asignación están definidos: =, *=, /=, %=, +=,
--=, >>=, <<=, &=, ^=, |=, \*\*=.
+Los siguientes operadores de asignación están definidos: `=`, `*=`, `/=`, `%=`, `+=`,
+`-=`, `>>=`, `<<=`, `&=`, `^=`, `|=`, `\*\*=`.
 
 Además, se cuenta con un operador unario prefijo caracter % el cual
 devuelve el caracter cuya representación en ASCII es el entero,
@@ -231,7 +233,7 @@ var x = 64.32 : float64;
 var y = 32 : int32;
 print! x+y; // y será promovido a float64
 
-var z = x+y : int8; // ocurrira una promoción y luego una democión
+var z = x+y : int16; // ocurrira una promoción y luego una democión
 ~~~
 
 Algunas conversiones ocurren automáticamente entre tipos numéricos:
@@ -283,14 +285,14 @@ Rangos
 
 Dentro del lenguaje los rangos se pueden definir como sigue:
 
-`[<inicial>..<final>]`
+`<inicial>..<final>`
 
 Esto define un rango desde inicial (incluyéndolo) hasta final
 (excluyéndolo) aumentando con un paso de 1.
 
 Para variar el paso, se puede utilizar la notación extendida:
 
-`[<inicial>, <inicial>+<paso>.., <final>]`
+`<inicial>, <inicial>+<paso>.., <final>`
 
 Los rangos no representan un tipo concreto dentro del lenguaje. Son un
 atajo para operaciones comunes, no se pueden asignar, no se pueden
@@ -300,9 +302,9 @@ resultado de ninguna función.
 Ejemplos
 ---------
 
-`[0..10] // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]`
+`0..10 // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]`
 
-`[0,2..10] // [0, 2, 4, 6, 8]`
+`0,2..10 // [0, 2, 4, 6, 8]`
 
 
 Arreglos
@@ -310,7 +312,7 @@ Arreglos
 
 Los arreglos unidimensionales se pueden declarar con la siguiente sintaxis:
 
-`var <identificador>[<rango>] : tipo;`
+`var <identificador> : <tipo>[<rango>];`
 
 El <rango> define los índices accesibles dentro del arreglo. Al
 declarar un arreglo todas las posiciones del arreglo toman su valor
@@ -318,25 +320,25 @@ neutro.
 
 Adicionalmente, se puede utilizar la siguiente notación:
 
-`var <identificador>[<entero>]: tipo;`
+`var <identificador> : <tipo>[<entero>];`
 
 que es azúcar sintáctico para:
 
-`var <identificador>[0..<entero>]: tipo;`
+`var <identificador> : <tipo>[0..<entero>];`
 
 En el caso de arreglos multidimensionales la sintaxis es similar:
 
-`var <identificador>[<rango_1>][<rango_2>]...[<rango_n>]: tipo;`
+`var <identificador> : <tipo>[<rango_1>][<rango_2>]...[<rango_n>];`
 
 Con la declaración simplificada
 
-`var <identificador>[<entero_1>][<entero_n>]...[<entero_n>]: tipo;`
+`var <identificador> : <tipo>[<entero_1>][<entero_n>]...[<entero_n>];`
 
 Como atajo para operaciones comunes, al momento de inicialización se
 puede utilizar la siguiente notación para llenarlo de un valor
 particular:
 
-`<arreglo> = {<valor>}`
+`<arreglo> = <valor>`
 
 Se cuenta con los siguientes operadores para trabajar con arreglos:
 
@@ -349,25 +351,26 @@ Ejemplos
 
 ~~~
 // declaración de un arreglo de enteros de diferentes maneras
-var arr1[0..10], arr2[10]: int;
+var arr1 : int[10];
+var arr2 : int[0..10];
 
 // declaración de una matriz 10x10
-var arr3[10][10]: int;
+var arr3 : int[10][10];
 
 // declaración de algo raro
-var arr4[365][24][60][60]: int;
+var arr4 : int[365][24][60][60];
 
 // poner todos los valores de arr1 en -1
-arr1 = {-1};
+arr1 = -1;
 
 // también podemos hacerlo al declarar
-arr5[10] = {-1}: int;
+var arr5 = -1 : int[10];
 
-print! arr1[0]; // imprime 0
+print! arr1[0]; // imprime -1
 arr1[0] = 1; // asigna 1.
 
-for int i: arr3[2..7] {
-    for int j: arr3[5..8] {
+for int i: arr1[2..7] {
+    for int j: arr2[5..8] {
         // hacer algo con i y j.
     }
 }
@@ -384,10 +387,10 @@ a como ocurre en C.
 
 ~~~
 struct <nombre> {
-    <lista de variables_1>: <type_1>,
-    <lista de variables_2>: <type_2>,
+    <lista de variables_1>: <type_1>;
+    <lista de variables_2>: <type_2>;
     ...
-    <lista de variables_n>: <type_n>
+    <lista de variables_n>: <type_n>;
 }
 ~~~
 
@@ -442,7 +445,7 @@ enum <identificador> {
     <identificador valor 1>[ = <valor_1>],
     <identificador valor 2>[ = <valor_2>],
     ...,
-    <identificador valor n>[ = <valor_n>];
+    <identificador valor n>[ = <valor_n>]
 }
 ~~~
 
@@ -463,10 +466,10 @@ utilizando la siguiente sintaxis:
 
 ~~~
 union <identificador> {
-    <identificador 1>: <tipo 1>,
-    <identificador 2>: <tipo 2>,
+    <identificador 1>: <tipo 1>;
+    <identificador 2>: <tipo 2>;
     ...
-    <identificador n>: <tipo n>,
+    <identificador n>: <tipo n>;
 }
 ~~~
 
@@ -493,48 +496,35 @@ Ejemplos
 
 ~~~
 struct point {
-    x, y: double
+    x, y : double;
 }
 
 struct rect {
-    top_left, bottom_right: point,
-    fill_color: enum color {
+    top_left, bottom_right : point;
+    fill_color : enum color {
         red, blue, green
-    }
+    };
 }
 
 struct circle {
-    center: point,
-    radius: double,
-    fill_color: color
+    center : point;
+    radius : double;
+    fill_color : color;
 }
 
 struct triangle {
-    a,b,c: point,
-    fill_color: color
+    a,b,c : point;
+    fill_color : color;
 }
 
-enum shape {
-    UNKOWN_SHAPE, circle(..), rect(..), triangle(..),
-    struct forma_rara {
-        // no tiene puntos, tiene enteros???
-        x, y: int
-    }
+struct weird {
+	p : point[10];
 }
 
-struct geometric_struct {
-    shapes: shape[10],
-    lines: struct line {
-        p1, p2: point
-    }[10],
-    count: int
-}
-
-fn main(args: string[]) -> int {
+fn main(args: string[]) {
     point p1(0, 0), p2(1, 1);
     int dx = p1.x-p2.x, dy = p1.y - p2.y;
-    println("#{sqrt(dx*dx+dy*dy)}");
-
+    print! sqrt(dx*dx+dy*dy);
 }
 ~~~
 
@@ -580,12 +570,6 @@ Es posible declarar multiples veces la misma función o procedimiento
 siempre y cuando sus parámetros sean diferentes entre cualquier par de
 funciones o procedimiento con el mismo nombre.
 
-Ejemplos
---------
-
-~~~
-fib, funcion random, redeclaracion.
-~~~
 
 Selección
 =========
@@ -616,32 +600,19 @@ if <condición_1> {
 
 La semántica de la instrucción de selección es la convencional.
 
-Operador Ternario
-------------------
-
-Por otro lado, el lenguaje provee un operador ternario similar a la encontrada en C/C++:
-
-~~~
-<condición> { <expresión_1> } else { <expresión_2> }
-~~~
-
 Ejemplos:
 ---------
 
 ~~~~~~
-// Signo
-fn sign(x: int) -> int {
+fn sign(x: int) : int {
     if x > 0 {
         return 1;
     } else if x < 0 {
         return -1;
-    }  else {
+    } else {
         return 0;
     }
 }
-
-// Expresiones
-println("Resultado: {}", resultado > 0 { resultado } else { "No se pudo calcular." });
 ~~~~~~
 
 
@@ -701,10 +672,10 @@ loop {
 // rock concert
 int i = 4;
 while i > 0 {
-    println("{}... ", i);
-    i--;
+    print! "{}... " , i;
+    i -= 1;
 }
-println("Rock.");
+print! "Rock.";
 ~~~
 
 Iteración Acotada
@@ -738,15 +709,15 @@ Ejemplos
 --------
 
 ~~~~
-for int i : [2..1000000] {
+for int i : 2..1000000 {
     if esPrimo(i) {
-        println("#{i} es primo");
+        print! i," es primo";
     }
 }
 ~~~~
 
 ~~~
 for string s: args {
-    println("#{pos(s)}: #{s}");
+    print! #{s}, " -> ", s;
 }
 ~~~
