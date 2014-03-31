@@ -1,8 +1,9 @@
 BigBrother: un lenguaje autocrático.
 ====================================
 
-BigBrother (corto conocido BB, o bebé) es un lenguaje imperativo fuertemente tipeado basado en la sintaxis
-de C e inspirado con ideas un poco más modernas provenientes de lenguajes como Rust y D.
+BigBrother (corto conocido BB, o bebé) es un lenguaje imperativo
+fuertemente tipeado basado en la sintaxis de C e inspirado con ideas
+un poco más modernas provenientes de lenguajes como Rust y D.
 
 Estructura General
 ==================
@@ -23,13 +24,16 @@ fn main(args: string[]) : int {
 
 El tipo de la función de retorno de la función `main` puede ser `int`
 o `void`. En el caso de ser `void` el programa siempre retornara un
-código de salida exitoso al sistema operativo. En caso contrario retornara al sistema operativo el valor retornado por la función.
+código de salida exitoso al sistema operativo. En caso contrario
+retornara al sistema operativo el valor retornado por la función.
 
 Alcances y Bloques
 ==================
 
 BB es un lenguaje de alcance estático. El alcance dentro de BB está
-definido por bloques demarcados por `{` y `}`. Un caso especial de esto es la definición global que se encuentra afuera de cualquier declaración de función.
+definido por bloques demarcados por `{` y `}`. Un caso especial de
+esto es la definición global que se encuentra afuera de cualquier
+declaración de función.
 
 ~~~
 // declaraciones globales
@@ -48,8 +52,9 @@ fn main(args: string[]) { // <--- define alcance
 Redeclarar una variable en el mismo alcance no está
 permitido.
 
-Dentro de funciones, y solo dentro de funciones, se puede referenciar a variables, funciones o procedimientos
-que no se han declarado todavía en el alcance global.
+Dentro de funciones, y solo dentro de funciones, se puede referenciar
+a variables, funciones o procedimientos que no se han declarado
+todavía en el alcance global.
 
 ~~~
 fn main(args: string[]) {
@@ -67,7 +72,9 @@ fn imprime_hola(quien: args) {
 const X = 17:int;
 ~~~
 
-Internamente, el analizador estático realiza una pasada superficial y manteniendo una bitácora de los identificadores de tipo, variables y funciones conseguidos en el alcance global.
+Internamente, el analizador estático realiza una pasada superficial y
+manteniendo una bitácora de los identificadores de tipo, variables y
+funciones conseguidos en el alcance global.
 
 Tipos
 =====
@@ -81,7 +88,8 @@ La declaración de una variable se realiza con la siguiente sintaxis:
 
 `var <identificador_1>, <identificador_2>, ..., <identificador_n> : <tipo>;`
 
-Se puede al momento de declaración realizar la inicialización de un número arbitrario de variables como sigue:
+Se puede al momento de declaración realizar la inicialización de un
+número arbitrario de variables como sigue:
 
 `var <identificador_1> [= <valor_1>], <identificador_2> [= <valor_2>], ..., <identificador_n> [= <valor_n>] : <tipo>;`
 
@@ -112,7 +120,7 @@ const fin = "fin":string;
 fn correme() {
      static miVariable=0:int;
      miVariable += 1;
-    print! miVariable; 
+    print! miVariable;
 }
 
 fn main(args: string[]) {
@@ -126,8 +134,9 @@ fn main(args: string[]) {
 Tipos booleanos
 ---------------
 
-Los tipos booleanos (identificados con el tipo primitivo bool) solo pueden tomar valores `true` o `false`. Sus
-operadores son los operadores normales `&&` (and), `||` (or), `!` (not), y `^` (xor)
+Los tipos booleanos (identificados con el tipo primitivo bool) solo
+pueden tomar valores `true` o `false`. Sus operadores son los
+operadores normales `&&` (and), `||` (or), `!` (not), y `^` (xor)
 respectivamente. Dos valores booleanos se pueden comparar utilizando
 los operadores de comparación `==`, `!=`, `>`, `>=`, `<`, `<=`.
 
@@ -150,7 +159,8 @@ float64.
 Al momento de declaración, en caso de obviar el valor inicial, se
 inicializan utilizando su valor neutro `0`.
 
-Para referirnos a números podemos utilizar cualquiera de las siguientes notaciones:
+Para referirnos a números podemos utilizar cualquiera de las
+siguientes notaciones:
 
 - Notación decimal: 0, 1, 1, 2, 3, 5, 8, ...
 - Notación científica (redondea al entero más cercano): 6.022e23, ...
@@ -158,22 +168,24 @@ Para referirnos a números podemos utilizar cualquiera de las siguientes notacio
 - Notación binaria: 0b0, 0b1, 0b1, 0b10, 0b11, 0b101, 0b1000, ...
 - Notación hexadecimal: 0x0, 0x1, 0x1, 0x2, 0x3, 0x5, 0x8
 
-El punto flotante se denota con el `.`. Para referirnos a números flotantes se puede utilizar:
+El punto flotante se denota con el `.`. Para referirnos a números
+flotantes se puede utilizar:
 
 - Notación decimal: 0, 1, 1, 2.0, 3.0, 5, 8, 17.325...
 - Notación científica: 6.022e23, 1.5e-4 ...
 
-Los siguientes operadores aritméticos están definidos para todos los tipos numéricos: `+`, `-`, `*`, `/`,
-`**` (exponenciación), `%` (módulo).
+Los siguientes operadores aritméticos están definidos para todos los
+tipos numéricos: `+`, `-`, `*`, `/`, `**` (exponenciación), `%`
+(módulo).
 
-Los siguientes operadores de comparación están definidos para todos los tipos numéricos: `==`, `!=`, `>`,
-`<`, `>=`, `<=`.
+Los siguientes operadores de comparación están definidos para todos
+los tipos numéricos: `==`, `!=`, `>`, `<`, `>=`, `<=`.
 
 Los siguientes operadores de bits están definidos: `&` (and), `|` (or),
 `^` (xor), `~` (not), `>>`, `<<`.
 
-Los siguientes operadores de asignación están definidos: `=`, `*=`, `/=`, `%=`, `+=`,
-`-=`, `>>=`, `<<=`, `&=`, `^=`, `|=`, `**=`.
+Los siguientes operadores de asignación están definidos: `=`, `*=`,
+`/=`, `%=`, `+=`, `-=`, `>>=`, `<<=`, `&=`, `^=`, `|=`, `**=`.
 
 Además, se cuenta con un operador unario prefijo caracter `@` el cual
 devuelve el caracter cuya representación en ASCII es el entero,
@@ -233,7 +245,8 @@ tipo utilizando la siguiente sintaxis:
 
 `type <identificador> = <tipo>;`
 
-Dentro del lenguaje se asignan los siguientes sobrenombres para facilitar el uso:
+Dentro del lenguaje se asignan los siguientes sobrenombres para
+facilitar el uso:
 
 ~~~
 type short = int8;
@@ -243,7 +256,9 @@ type double = float64;
 type float = float32;
 ~~~
 
-A momento de análisis estático el sobrenombre es elevado al alcance global, por lo que de existir algún otro identificador con el mismo nombre esto generará un error estático.
+A momento de análisis estático el sobrenombre es elevado al alcance
+global, por lo que de existir algún otro identificador con el mismo
+nombre esto generará un error estático.
 
 
 Ejemplos
@@ -314,7 +329,8 @@ particular:
 Se cuenta con los siguientes operadores para trabajar con arreglos:
 
 - `#arreglo` retorna la dimensión más externa del arreglo
-- `@arreglo` retorna la posición actual de iteración. Más sobre esto en la sección de iteración determinada.
+- `@arreglo` retorna la posición actual de iteración. Más sobre esto
+  en la sección de iteración determinada.
 - Para acceder un indice se utiliza el operador `[]` como en C.
 - `arreglo[RANGO]` devuelve un rango con los elementos entre los elementos de RANGO.
 
@@ -348,10 +364,12 @@ for int i: arr1[2..7] {
 }
 ~~~
 
-Tipos de datos compuestos 
+Tipos de datos compuestos
 ===================
 
-En BB se pueden definir un numero arbitrario de tipos de datos compuestos o extendidos. Sin embargo, como se ha mencionado, solo se puede hacer de forma global.
+En BB se pueden definir un numero arbitrario de tipos de datos
+compuestos o extendidos. Sin embargo, como se ha mencionado, solo se
+puede hacer de forma global.
 
 Estructuras de datos
 --------------------
@@ -369,7 +387,10 @@ struct <nombre> {
 };
 ~~~
 
-No se permite redeclarar ninguna variable en ningún punto. Durante el análisis sintáctico se eleva el identificador del tipo al alcance global, por lo que si existe algún otro identificador de alcance global con el mismo nombre resultará en un error estático.
+No se permite redeclarar ninguna variable en ningún punto. Durante el
+análisis sintáctico se eleva el identificador del tipo al alcance
+global, por lo que si existe algún otro identificador de alcance
+global con el mismo nombre resultará en un error estático.
 
 Una vez declarada la estructura, en cualquier punto del programa se
 puede declarar y a su vez inicializar sus campos utilizando la
@@ -435,7 +456,11 @@ identificador, de no tener asignado un valor, corresponde al valor 0.
 El valor neutro de una enumeración corresponde siempre al valor neutro
 del identificador que aparece de primero.
 
-Durante el análisis estático los identificadores son elevados a alcance global, por lo que en caso de que a momento en que se registra el identificador ya existe algún otro identificador global (tipo, función, variable y posiblemente otros identificadores de enumeraciones) que tengan ese nombre no se registrará ese tipo.
+Durante el análisis estático los identificadores son elevados a
+alcance global, por lo que en caso de que a momento en que se registra
+el identificador ya existe algún otro identificador global (tipo,
+función, variable y posiblemente otros identificadores de
+enumeraciones) que tengan ese nombre no se registrará ese tipo.
 
 
 Uniones
@@ -454,9 +479,11 @@ union <identificador> {
 ~~~
 
 El valor neutro de una unión corresponde siempre al valor neutro del
-tipo del identificador que aparece de primero. 
+tipo del identificador que aparece de primero.
 
-Durante el análisis sintáctico se eleva el identificador del tipo al alcance global, por lo que de existir algún otro identificador de alcance global con el mismo nombre, resultará en error estático.
+Durante el análisis sintáctico se eleva el identificador del tipo al
+alcance global, por lo que de existir algún otro identificador de
+alcance global con el mismo nombre, resultará en error estático.
 
 
 La semántica de la enumeración es funcionar como un una unión como en
@@ -471,7 +498,11 @@ Declaraciones "anónimas"
 
 En cualquier punto de una declaración de un tipo se puede agregar una
 declaración anónima. Sin embargo, esta declaración tiene que tener su
-identificador y definirá un tipo accesible en cualquier punto del programa. Al igual que las declaraciones que no son anónimas, el identificador del tipo es elevado al alcance global por lo que de existir algún otro identificador de alcance global con el mismo nombre esto resultará en error.
+identificador y definirá un tipo accesible en cualquier punto del
+programa. Al igual que las declaraciones que no son anónimas, el
+identificador del tipo es elevado al alcance global por lo que de
+existir algún otro identificador de alcance global con el mismo nombre
+esto resultará en error.
 
 Ejemplos
 -------
@@ -510,7 +541,9 @@ fn main(args: string[]) {
 }
 ~~~
 
-No está permitido declarar arreglos con el uso de declaraciones anónimas. Exhortamos al desarrollador a declarar previamente el tipo antes de intentar usar un arreglo del mismo.
+No está permitido declarar arreglos con el uso de declaraciones
+anónimas. Exhortamos al desarrollador a declarar previamente el tipo
+antes de intentar usar un arreglo del mismo.
 
 
 Funciones y procedimientos
@@ -542,11 +575,15 @@ palabra clave `return`.
 El único caso en el que se puede (y se debe) obviar `<resultado>` es
 cuando la función es de tipo `void`.
 
-El pasado de parámetros por defecto es siempre por valor. Se
-puede forzar el pasado de parámetros por referencia en utilizando los tipos especiales (y solo utilizables en este
-contexto) que terminan con un `&`, por ejemplo, `int&`.
+El pasado de parámetros por defecto es siempre por valor. Se puede
+forzar el pasado de parámetros por referencia en utilizando los tipos
+especiales (y solo utilizables en este contexto) que terminan con un
+`&`, por ejemplo, `int&`.
 
-Está permitido hacer llamadas recursivas de procedimientos. Dado que el lenguaje permite referenciar cualquier cantidad de funciones que posiblemente no están definidas aún, se permite la recursión entre funciones mutuamente recursivas.
+Está permitido hacer llamadas recursivas de procedimientos. Dado que
+el lenguaje permite referenciar cualquier cantidad de funciones que
+posiblemente no están definidas aún, se permite la recursión entre
+funciones mutuamente recursivas.
 
 Es posible declarar multiples veces la misma función o procedimiento
 siempre y cuando sus parámetros sean diferentes entre cualquier par de
@@ -700,7 +737,7 @@ for int i : 2..1000000 {
 
 ~~~
 for string s: args {
-    print! @{s}, " -> ", s;
+    print! @s, " -> ", s;
 }
 ~~~
 
@@ -708,4 +745,36 @@ for string s: args {
 Tablas de Precedencia
 ----------------------
 
-Tabla aca.
+|-------------|-------------------------------------------------------------|---------------------|
+| Precedencia | Operador                                                    | Asociatividad       |
+|-------------|-------------------------------------------------------------|---------------------|
+|           1 | `arreglo[]`, `objeto.valor`, `funcion()`                    | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|           2 | `**`                                                        | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|           3 | `-` `|` `~` `!` `@` `#` (unarios todos los anteriores) `as` | Derecha a izquierda |
+|-------------|-------------------------------------------------------------|---------------------|
+|           4 | `*` `/` `%                                                  | Izquierda a Derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|           5 | `|`, `-`                                                    | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|           6 | `>>`, `<<`                                                  | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|           7 | `<=`, `<`, `>`, `>=`                                        | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|           8 | `==`, `!=`                                                  | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|           9 | `&`                                                         | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|          10 | `^`                                                         | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|          11 | `|`                                                         | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|          12 | `&&`                                                        | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|          13 | `||`                                                        | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
+|          14 | `by`                                                        | No asociativo       |
+|-------------|-------------------------------------------------------------|---------------------|
+|          15 | `..`                                                        | Izquierda a derecha |
+|-------------|-------------------------------------------------------------|---------------------|
