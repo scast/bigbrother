@@ -22,9 +22,8 @@ imprimirSimbolos table ubic = text "Symbols:" $$ M.foldl' f empty (mapping table
   where f a b = a $$ nest 3 (imprimirSimbolo b ubic)
 
 imprimirHijos table ubic =
-  (if (ubic==2) then empty
-    else text "Sons:" $$ foldl f empty (sons table))
-      where f a b = a $$ nest 3 (prettySymbolTable b ubic)
+  text "Sons:" $$ foldl f empty (sons table)
+    where f a b = a $$ nest 3 (prettySymbolTable b ubic)
 
 imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) ubic =
   text "Type => "
@@ -32,7 +31,6 @@ imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) ubic =
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
-  $$ (if (M.null (mapping table)) then empty else (prettySymbolTable table ubic))
 
 imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) _ =
   text "Variable => "
@@ -48,7 +46,6 @@ imprimirSimbolo (Function (Parser.Ident nombre l c) table) ubic =
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
-  $$ (prettySymbolTable table ubic)
 
 -- imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)
 --   where f a b = a $$ nest 5 (prettySymbolTable b)
