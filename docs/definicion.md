@@ -749,16 +749,16 @@ Tablas de Precedencia
 |-------------|-------------------------------------------------------------|---------------------|
 |           1 | `arreglo[]`, `objeto.valor`, `funcion()`                    | Izquierda a derecha |
 |           2 | `**`                                                        | Izquierda a derecha |
-|           3 | `-` `|` `~` `!` `@` `#` (unarios todos los anteriores) `as` | Derecha a izquierda |
-|           4 | `*` `/` `%                                                  | Izquierda a Derecha |
-|           5 | `|`, `-`                                                    | Izquierda a derecha |
+|           3 | `-` `+` `~` `!` `@` `#` `as` | Derecha a izquierda |
+|           4 | `*` `/` `%`                                                  | Izquierda a Derecha |
+|           5 | `+`, `-`                                                    | Izquierda a derecha |
 |           6 | `>>`, `<<`                                                  | Izquierda a derecha |
 |           7 | `<=`, `<`, `>`, `>=`                                        | Izquierda a derecha |
 |           8 | `==`, `!=`                                                  | Izquierda a derecha |
 |           9 | `&`                                                         | Izquierda a derecha |
 |          10 | `^`                                                         | Izquierda a derecha |
-|          11 | `|`                                                         | Izquierda a derecha |
+|          11 | OR binario                                                         | Izquierda a derecha |
 |          12 | `&&`                                                        | Izquierda a derecha |
-|          13 | `||`                                                        | Izquierda a derecha |
+|          13 | OR booleano                                                        | Izquierda a derecha |
 |          14 | `by`                                                        | No asociativo       |
 |          15 | `..`                                                        | Izquierda a derecha |
