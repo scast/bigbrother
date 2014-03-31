@@ -59,16 +59,14 @@ dropUntilFirstToTheLeft :: Int -> [Lexeme] -> (Maybe String, [Lexeme])
 dropUntilFirstToTheLeft atleast tokens = (matched, newList)
   where newList = dropWhile (\x -> matchFunc (str x)) (drop atleast tokens)
         matched = if (null newList) then Nothing else Just (str (head newList))
-        matchFunc x = x /= "(" && x /= "{"
+        matchFunc x = x /= "(" && x /= "{" && x /= ";"
 
 toTheRight "(" = ")"
 toTheRight "{" = "}"
 
 dropUntilFirstToTheRight :: Maybe String -> Int -> [Lexeme] -> (Maybe String, [Lexeme])
 dropUntilFirstToTheRight Nothing _ _ = (Nothing, [])
-dropUntilFirstToTheRight (Just ";") atleast tokens = (matched, if shouldDrop
-                                                               then take 1 newList
-                                                               else newList)
+dropUntilFirstToTheRight (Just ";") atleast tokens = (matched, newList')
   where newList = dropWhile (\x -> (str x) /= "}" && (str x) /= ";") (drop atleast tokens)
         matched = if (null newList)
                   then Nothing
@@ -77,6 +75,7 @@ dropUntilFirstToTheRight (Just ";") atleast tokens = (matched, if shouldDrop
           case matched of
             Just ";" -> True
             _ -> False
+        newList' = if shouldDrop then drop 1 newList else newList
 
 dropUntilFirstToTheRight (Just match) atleast tokens = (matched, newList)
   where newList = dropWhile (\x -> (str x) /= (toTheRight match)) (drop atleast tokens)
@@ -101,13 +100,16 @@ tryParse tokens = do
 
 tryParse' tokens leftTokens err = do
     -- Left (err, leftTokens) -> do
+  -- putStrLn (show tokens)
+  -- putStrLn (show leftTokens)
   setSGR [SetColor Foreground Vivid Red]
   let context = intercalate " " (take 3 (map str leftTokens))
   putStrLn (err ++ " cerca de \"" ++ context ++ "\""
             ++ (if (null leftTokens)
                 then ""
                 else " (" ++ (showPosn (pos (leftTokens !! 0))) ++ ")"))
-
+  -- putStrLn (show leftTokens)
+  -- putStrLn (show tokens)
   let totalTokens = length tokens
       toGoTokens = length leftTokens
       splitPos = (totalTokens - toGoTokens)
@@ -122,6 +124,11 @@ tryParse' tokens leftTokens err = do
             _ -> 0
       (matchLeft, newLeftTokens) = (dropUntilFirstToTheLeft atleast workingLeft)
       (matchRight, newRightTokens) = dropUntilFirstToTheRight matchLeft 0 leftTokens
+  -- putStrLn (show matchRight)
+  -- putStrLn (show workingLeft)
+  -- putStrLn ("--------")
+  -- putStrLn (show atleast)
+  -- putStrLn ("--------")
   case (matchLeft,matchRight) of
     (Nothing, _) -> return []
     (_, Nothing) -> return []
@@ -129,8 +136,8 @@ tryParse' tokens leftTokens err = do
       setSGR [SetColor Foreground Vivid Yellow]
       putStrLn $ "Tratando de recuperarme..."
       -- putStrLn $ show $ take (splitPos) tokens
-      putStrLn $ show newLeftTokens
-      putStrLn $ show newRightTokens
+      -- putStrLn $ show (reverse newLeftTokens)
+      -- putStrLn $ show newRightTokens
           -- ... se hace lo que se puede con lo que se tiene...
       tryParse $ (reverse newLeftTokens) ++ newRightTokens
 

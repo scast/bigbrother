@@ -140,12 +140,14 @@
 
 > TYPECOMBINE
 >   : STRUCT IDENT '{' FIELDS '}'                 {% returnM  ( TypeStruct (saveIdent $2) $4 ) }
->   | STRUCT IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"struct\""]  >> returnM (TypeStruct (saveIdent $2) []) }
+>   | STRUCT IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"struct " ++ (str $2) ++ " { \" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++ ")"]  >> returnM (TypeStruct (saveIdent $2) []) }
+>   | UNION IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"union " ++ (str $2) ++ " { \" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++ ")"]  >> returnM (TypeUnion (saveIdent $2) []) }
 -- >   | UNION IDENT '{' error '}'                 { TypeUnion (saveIdent $2) [] }
 >   | STRUCT IDENT '{' FIELDS '}' DIMENSIONS      {% returnM  ( ArrayOf (TypeStruct (saveIdent $2) $4) $6 ) }
 >   | UNION IDENT '{' FIELDS '}'                  {% returnM  ( TypeUnion (saveIdent $2) $4 ) }
 >   | UNION IDENT '{' FIELDS '}' DIMENSIONS       {% returnM  ( ArrayOf (TypeUnion (saveIdent $2) $4) $6 ) }
 >   | ENUM IDENT '{' LISTAVARIABLES '}'           {% returnM  ( TypeEnum (saveIdent $2) $4 ) }
+>   | ENUM IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"enum " ++ (str $2) ++ " { \" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++ ")"]  >> returnM (TypeUnion (saveIdent $2) []) }
 -- >   | ENUM IDENT '{' error '}'           { TypeEnum (saveIdent $2) [] }
 >   | ENUM IDENT '{' LISTAVARIABLES '}' DIMENSIONS {% returnM  ( ArrayOf (TypeEnum (saveIdent $2) $4) $6 ) }
 
@@ -196,13 +198,13 @@
 
 > IFANIDADO
 >   : IF EXPR BLOQUE                {% returnM  ( [(Just $2, $3)] ) }
--- >   | IF error BLOQUE                { [(Nothing, $3)] }
+>   | IF error BLOQUE                {% tell ["Error de reconocimiento (shift) cerca de \"if\" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++  ")"] >> returnM [(Nothing, $3)] }
 >   | IFANIDADO ELSE IF EXPR BLOQUE {% returnM  ( $1 ++ [(Just $4, $5)] ) }
 
 > LOOPING
 >   : LOOP BLOQUE                             {% returnM  ( Loop $2 ) }
 >   | WHILE EXPR BLOQUE                       {% returnM  ( While $2 $3 ) }
--- >   | WHILE error BLOQUE                       { While (Str "error") $3 }
+>   | WHILE error BLOQUE                       {% tell ["Error de reconocimiento (shift) cerca de \"while\" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++  ")"] >> returnM (While (Str "error") $3) }
 >   | FOR TYPESIMPLEREF IDENT ':' EXPR BLOQUE {% returnM  ( For $2 (saveIdent $3) $5 $6 ) }
 
 > ASIGNACION
