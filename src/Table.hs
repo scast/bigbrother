@@ -104,13 +104,6 @@ checkExists name = do
     Just _ -> return ()
     Nothing -> tell ["Simbolo " ++ (name) ++ " no ha sido definido"]
 
-checkNotExists :: String -> Generator b () -> Generator b ()
-checkNotExists name callback = do
-  table <- gets (current)
-  track <- gets (path)
-  case symbolLookup ((mapping table):(map mapping track)) name of
-    Just _ -> tell ["Simbolo " ++ (name) ++ " ya ha sido definido."]
-    Nothing -> callback
 
 checkExpr :: Parser.Expr -> Generator b ()
 checkExpr (Parser.B "." l r) = checkExpr l
@@ -126,8 +119,15 @@ checkExpr (Parser.TypeCast e (Parser.Ident name _ _)) = checkExpr e
                                                         >> checkExists name
 checkExpr (Parser.R l r step) = checkExpr l >> checkExpr r >> checkExpr step
 
--- performs a check for type and id, stores error if any, and runs
--- callback on everything ok
+checkNotExists :: String -> Generator b () -> Generator b ()
+checkNotExists name callback = do
+  table <- gets (current)
+  track <- gets (path)
+  case symbolLookup ((mapping table):(map mapping track)) name of
+    Just _ -> tell ["Simbolo " ++ (name) ++ " ya ha sido definido."]
+    Nothing -> callback
+
+
 checkAndPerform :: String -> Parser.Type -> (Table -> Generator b ())
                    -> Generator b ()
 checkAndPerform name ptype callback= do
@@ -301,6 +301,7 @@ handleComplexType tipo callback  = do
                                         }
                       }
              )
+      callback
     _ -> do
       -- save this symbol
       addShallowType tipo
@@ -322,6 +323,7 @@ handleComplexType tipo callback  = do
                                         }
                       }
              )
+      callback
 
 recursiveInstructionBuild ntable instlist = do
   -- create a new table

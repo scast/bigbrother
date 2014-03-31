@@ -1,5 +1,5 @@
 {
-module Lexer (Lexeme(..), LexemeClass(..), AlexPosn(..), lexer) where
+module Lexer (Lexeme(..), LexemeClass(..), AlexPosn(..), lexer, showPosn) where
 import Control.Monad.Writer
 import Data.Either
 }

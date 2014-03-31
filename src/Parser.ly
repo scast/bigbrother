@@ -1,7 +1,8 @@
 > {
-> module Parser (parseTokens, Initialization(..), Ident(..), Global(..), VKind(..), Type(..), Instruction(..), Expr(..)) where
+> module Parser (Parser(..), parseTokens, Initialization(..), Ident(..), Global(..), VKind(..), Type(..), Instruction(..), Expr(..)) where
 > import Lexer
 > import Control.Monad.Writer
+> import Control.Monad.Trans.Either
 > }
 
 > %left '..'
@@ -22,7 +23,7 @@
 
 > %name parser
 > %tokentype { Lexeme }
-> %monad { Parser }
+> %monad { Parser } { bindM } { returnM }
 > %error { happyError }
 
 > %token
@@ -102,202 +103,208 @@
 > %%
 
 > INICIAL
->   : GLOBAL         { [$1] }
->   | INICIAL GLOBAL { $1 ++ [$2] }
+>   : GLOBAL         {% returnM  ( [$1] ) }
+>   | INICIAL GLOBAL {% returnM  ( $1 ++ [$2] ) }
 
 > GLOBAL
->   : DECKIND LISTAVARIABLES ':' TYPESIMPLE ';' { GlobalVar $1 $4 $2 }
->   | TYPE IDENT '=' TYPESIMPLE ';'             { TypeDef (saveIdent $2) $4 }
->   | FUNCION                                   { $1 }
->   | TYPECOMBINE                               { DefCombine $1 }
+>   : DECKIND LISTAVARIABLES ':' TYPESIMPLE ';' {% returnM  ( GlobalVar $1 $4 $2 ) }
+>   | TYPE IDENT '=' TYPESIMPLE ';'             {% returnM  ( TypeDef (saveIdent $2) $4 ) }
+>   | FUNCION                                   {% returnM  ( $1 ) }
+>   | TYPECOMBINE ';'                               {% returnM  ( DefCombine $1 ) }
 
 > FUNCION
->   : FN IDENT '(' PARLISTONADA ')' ':' TYPESIMPLE BLOQUE { Function (saveIdent $2) $4 $7 $8 }
->   | FN IDENT '(' PARLISTONADA ')' BLOQUE { Function (saveIdent $2) $4 (Type $ (Ident "void" (-1) (-1))) $6 }
+>   : FN IDENT '(' PARLISTONADA ')' ':' TYPESIMPLE BLOQUE {% returnM  ( Function (saveIdent $2) $4 $7 $8 ) }
+>   | FN IDENT '(' PARLISTONADA ')' BLOQUE {% returnM  ( Function (saveIdent $2) $4 (Type $ (Ident "void" (-1) (-1))) $6 ) }
 
 > PARLISTONADA
->   :                           { [] }
->   | POSITIONALP               { $1 }
->   | WDEFAULTS                 { $1 }
->   | POSITIONALP ',' WDEFAULTS { $1 ++ $3 }
+>   :                           {% returnM  ( [] ) }
+>   | POSITIONALP               {% returnM  ( $1 ) }
+>   | WDEFAULTS                 {% returnM  ( $1 ) }
+>   | POSITIONALP ',' WDEFAULTS {% returnM  ( $1 ++ $3 ) }
 
 > POSITIONALP
->   : POSITIONALP ',' IDENT ':' TYPESIMPLEREF { $1 ++ [(saveIdent $3, Nothing, $5)] }
->   | IDENT ':' TYPESIMPLEREF                 { [(saveIdent $1, Nothing, $3)] }
+>   : POSITIONALP ',' IDENT ':' TYPESIMPLEREF {% returnM  ( $1 ++ [(saveIdent $3, Nothing, $5)] ) }
+>   | IDENT ':' TYPESIMPLEREF                 {% returnM  ( [(saveIdent $1, Nothing, $3)] ) }
 
 > WDEFAULTS
->   : WDEFAULTS ',' IDENT '=' EXPR ':' TYPESIMPLEREF { $1 ++ [(saveIdent $3, Just $5, $7)] }
->   | IDENT '=' EXPR ':' TYPESIMPLEREF               { [(saveIdent $1, Just $3, $5)]}
+>   : WDEFAULTS ',' IDENT '=' EXPR ':' TYPESIMPLEREF {% returnM  ( $1 ++ [(saveIdent $3, Just $5, $7)] ) }
+>   | IDENT '=' EXPR ':' TYPESIMPLEREF               {% returnM  ( [(saveIdent $1, Just $3, $5)]) }
 
 > TYPESIMPLEREF
->   : TYPESIMPLE     { $1 }
->   | TYPESIMPLE '&' { ReferenceTo $1 }
+>   : TYPESIMPLE     {% returnM  ( $1 ) }
+>   | TYPESIMPLE '&' {% returnM  ( ReferenceTo $1 ) }
 
 > TYPEN
->   : TYPESIMPLE  { $1 }
->   | TYPECOMBINE { $1 }
+>   : TYPESIMPLE  {% returnM  ( $1 ) }
+>   | TYPECOMBINE {% returnM  ( $1 ) }
 
 > TYPECOMBINE
->   : STRUCT IDENT '{' FIELDS '}'                 { TypeStruct (saveIdent $2) $4 }
->   | STRUCT IDENT '{' error '}'                 { TypeStruct (saveIdent $2) [] }
->   | UNION IDENT '{' error '}'                 { TypeUnion (saveIdent $2) [] }
->   | STRUCT IDENT '{' FIELDS '}' DIMENSIONS      { ArrayOf (TypeStruct (saveIdent $2) $4) $6 }
->   | UNION IDENT '{' FIELDS '}'                  { TypeUnion (saveIdent $2) $4 }
->   | UNION IDENT '{' FIELDS '}' DIMENSIONS       { ArrayOf (TypeUnion (saveIdent $2) $4) $6 }
->   | ENUM IDENT '{' LISTAVARIABLES '}'           { TypeEnum (saveIdent $2) $4 }
->   | ENUM IDENT '{' error '}'           { TypeEnum (saveIdent $2) [] }
->   | ENUM IDENT '{' LISTAVARIABLES '}' DIMENSIONS { ArrayOf (TypeEnum (saveIdent $2) $4) $6 }
+>   : STRUCT IDENT '{' FIELDS '}'                 {% returnM  ( TypeStruct (saveIdent $2) $4 ) }
+>   | STRUCT IDENT '{' error '}'                 {% tell ["Error de reconocimiento (shift) cerca de \"struct\""]  >> returnM (TypeStruct (saveIdent $2) []) }
+-- >   | UNION IDENT '{' error '}'                 { TypeUnion (saveIdent $2) [] }
+>   | STRUCT IDENT '{' FIELDS '}' DIMENSIONS      {% returnM  ( ArrayOf (TypeStruct (saveIdent $2) $4) $6 ) }
+>   | UNION IDENT '{' FIELDS '}'                  {% returnM  ( TypeUnion (saveIdent $2) $4 ) }
+>   | UNION IDENT '{' FIELDS '}' DIMENSIONS       {% returnM  ( ArrayOf (TypeUnion (saveIdent $2) $4) $6 ) }
+>   | ENUM IDENT '{' LISTAVARIABLES '}'           {% returnM  ( TypeEnum (saveIdent $2) $4 ) }
+-- >   | ENUM IDENT '{' error '}'           { TypeEnum (saveIdent $2) [] }
+>   | ENUM IDENT '{' LISTAVARIABLES '}' DIMENSIONS {% returnM  ( ArrayOf (TypeEnum (saveIdent $2) $4) $6 ) }
 
 > TYPESIMPLE
->   : IDENT            { Type $ saveIdent $1 }
->   | IDENT DIMENSIONS { ArrayOf (Type $ saveIdent $1) $2 }
+>   : IDENT            {% returnM  ( Type $ saveIdent $1 ) }
+>   | IDENT DIMENSIONS {% returnM  ( ArrayOf (Type $ saveIdent $1) $2 ) }
 
 > DIMENSIONS
->   : '[' EXPR ']'            { [Just $2] }
->   | '[' ']'                 { [Nothing] }
->   | DIMENSIONS '[' EXPR ']' { $1 ++ [Just $3] }
->   | DIMENSIONS '[' ']'      { $1 ++ [Nothing] }
+>   : '[' EXPR ']'            {% returnM  ( [Just $2] ) }
+>   | '[' ']'                 {% returnM  ( [Nothing] ) }
+>   | DIMENSIONS '[' EXPR ']' {% returnM  ( $1 ++ [Just $3] ) }
+>   | DIMENSIONS '[' ']'      {% returnM  ( $1 ++ [Nothing] ) }
 
 > INSTONADA
->   :          { [] }
->   | INSTLIST { $1 }
+>   :          {% returnM  ( [] ) }
+>   | INSTLIST {% returnM  ( $1 ) }
 
 > INSTLIST
->   : INST          { [$1] }
->   | INSTLIST INST { $1 ++ [$2] }
+>   : INST          {% returnM  ( [$1] ) }
+>   | INSTLIST INST {% returnM  ( $1 ++ [$2] ) }
 
-> BLOQUE : '{' INSTONADA '}' { $2 }
+> BLOQUE : '{' INSTONADA '}' {% returnM  ($2 ) }
 
 > INST
->   : DEC ';'        { $1 }
->   | ASIGNACION ';' { $1 }
->   | SELECTOR       { $1 }
->   | LOOPING        { $1 }
->   | RETURNP ';'    { $1 }
->   | CONTINUE ';'   { Continue }
->   | BREAK ';'      { Break }
->   | PRINTP ';'     { $1 }
->   | GRABP ';'      { $1 }
->   | VOIDCALL ';'   { $1 }
+>   : DEC ';'        {% returnM  ( $1 ) }
+>   | ASIGNACION ';' {% returnM  ( $1 ) }
+>   | SELECTOR       {% returnM  ( $1 ) }
+>   | LOOPING        {% returnM  ( $1 ) }
+>   | RETURNP ';'    {% returnM  ( $1 ) }
+>   | CONTINUE ';'   {% returnM  ( Continue ) }
+>   | BREAK ';'      {% returnM  ( Break ) }
+>   | PRINTP ';'     {% returnM  ( $1 ) }
+>   | GRABP ';'      {% returnM  ( $1 ) }
+>   | VOIDCALL ';'   {% returnM  ( $1 ) }
 
-> VOIDCALL : IDENT '(' LISTAONADA ')' { VoidCall (saveIdent $1) $3 }
+> VOIDCALL : IDENT '(' LISTAONADA ')' {% returnM  ( VoidCall (saveIdent $1) $3 ) }
 
-> DEC : VAR LISTAVARIABLES ':' TYPESIMPLE { LocalVar $4 $2 }
+> DEC : VAR LISTAVARIABLES ':' TYPESIMPLE {% returnM  ( LocalVar $4 $2 ) }
 
 > DECKIND
->   : VAR    { VarKind }
->   | STATIC { Static }
->   | CONST  { Const }
+>   : VAR    {% returnM  ( VarKind ) }
+>   | STATIC {% returnM  ( Static ) }
+>   | CONST  {% returnM  ( Const ) }
 
 > SELECTOR
->   : IFANIDADO             { If $1 }
->   | IFANIDADO ELSE BLOQUE { If ($1 ++ [(Nothing, $3)]) }
+>   : IFANIDADO             {% returnM  ( If $1 ) }
+>   | IFANIDADO ELSE BLOQUE {% returnM  ( If ($1 ++ [(Nothing, $3)]) ) }
 
 > IFANIDADO
->   : IF EXPR BLOQUE                { [(Just $2, $3)] }
->   | IFANIDADO ELSE IF EXPR BLOQUE { $1 ++ [(Just $4, $5)] }
+>   : IF EXPR BLOQUE                {% returnM  ( [(Just $2, $3)] ) }
+-- >   | IF error BLOQUE                { [(Nothing, $3)] }
+>   | IFANIDADO ELSE IF EXPR BLOQUE {% returnM  ( $1 ++ [(Just $4, $5)] ) }
 
 > LOOPING
->   : LOOP BLOQUE                             { Loop $2 }
->   | WHILE EXPR BLOQUE                       { While $2 $3 }
->   | FOR TYPESIMPLEREF IDENT ':' EXPR BLOQUE { For $2 (saveIdent $3) $5 $6 }
+>   : LOOP BLOQUE                             {% returnM  ( Loop $2 ) }
+>   | WHILE EXPR BLOQUE                       {% returnM  ( While $2 $3 ) }
+-- >   | WHILE error BLOQUE                       { While (Str "error") $3 }
+>   | FOR TYPESIMPLEREF IDENT ':' EXPR BLOQUE {% returnM  ( For $2 (saveIdent $3) $5 $6 ) }
 
 > ASIGNACION
->   : EXPR '=' EXPR   { Assign "="  $1 $3 }
->   | EXPR '+=' EXPR  { Assign "+"  $1 $3 }
->   | EXPR '-=' EXPR  { Assign "-"  $1 $3 }
->   | EXPR '*=' EXPR  { Assign "*"  $1 $3 }
->   | EXPR '/=' EXPR  { Assign "/"  $1 $3 }
->   | EXPR '%=' EXPR  { Assign "%"  $1 $3 }
->   | EXPR '>>=' EXPR { Assign ">>" $1 $3 }
->   | EXPR '<<=' EXPR { Assign "<<" $1 $3 }
->   | EXPR '&=' EXPR  { Assign "&"  $1 $3 }
->   | EXPR '|=' EXPR  { Assign "|"  $1 $3 }
->   | EXPR '^=' EXPR  { Assign "^"  $1 $3 }
->   | EXPR '&&=' EXPR { Assign "&&" $1 $3 }
->   | EXPR '||=' EXPR { Assign "||" $1 $3 }
+>   : EXPR '=' EXPR   {% returnM  ( Assign "="  $1 $3 ) }
+>   | EXPR '+=' EXPR  {% returnM  ( Assign "+"  $1 $3 ) }
+>   | EXPR '-=' EXPR  {% returnM  ( Assign "-"  $1 $3 ) }
+>   | EXPR '*=' EXPR  {% returnM  ( Assign "*"  $1 $3 ) }
+>   | EXPR '/=' EXPR  {% returnM  ( Assign "/"  $1 $3 ) }
+>   | EXPR '%=' EXPR  {% returnM  ( Assign "%"  $1 $3 ) }
+>   | EXPR '>>=' EXPR {% returnM  ( Assign ">>" $1 $3 ) }
+>   | EXPR '<<=' EXPR {% returnM  ( Assign "<<" $1 $3 ) }
+>   | EXPR '&=' EXPR  {% returnM  ( Assign "&"  $1 $3 ) }
+>   | EXPR '|=' EXPR  {% returnM  ( Assign "|"  $1 $3 ) }
+>   | EXPR '^=' EXPR  {% returnM  ( Assign "^"  $1 $3 ) }
+>   | EXPR '&&=' EXPR {% returnM  ( Assign "&&" $1 $3 ) }
+>   | EXPR '||=' EXPR {% returnM  ( Assign "||" $1 $3 ) }
 
 > EXPR
->   : CHAR                     { Char $1 }
->   | NUMBER                   { Number $1 }
->   | BOOL                     { Bool $1 }
->   | STRING                   { Str $1 }
->   | IDENT                    { Var (saveIdent $1) }
->   | IDENT '(' LISTAONADA ')' { FunctionCall (saveIdent $1) $3 }
->   | EXPR '.' EXPR            { B "." $1 $3  }
->   | EXPR AS IDENT            { TypeCast $1 (saveIdent $3) }
->   | '(' EXPR ')'             { $2 }
->   | EXPR '+' EXPR            { B $2 $1 $3 }
->   | EXPR '-' EXPR            { B $2 $1 $3 }
->   | EXPR '*' EXPR            { B $2 $1 $3 }
->   | EXPR '/' EXPR            { B $2 $1 $3 }
->   | EXPR '&&' EXPR           { B $2 $1 $3 }
->   | EXPR '||' EXPR           { B $2 $1 $3 }
->   | EXPR '^' EXPR            { B $2 $1 $3 }
->   | EXPR '==' EXPR           { B $2 $1 $3 }
->   | EXPR '!=' EXPR           { B $2 $1 $3 }
->   | EXPR '>' EXPR            { B $2 $1 $3 }
->   | EXPR '>=' EXPR           { B $2 $1 $3 }
->   | EXPR '<' EXPR            { B $2 $1 $3 }
->   | EXPR '<=' EXPR           { B $2 $1 $3 }
->   | EXPR '**' EXPR           { B $2 $1 $3 }
->   | EXPR '>>' EXPR           { B $2 $1 $3 }
->   | EXPR '<<' EXPR           { B $2 $1 $3 }
->   | EXPR '|' EXPR            { B $2 $1 $3 }
->   | EXPR '&' EXPR            { B $2 $1 $3 }
->   | EXPR '%' EXPR            { B $2 $1 $3 }
->   | EXPR '..' EXPR           { R $1 $3 (Number "1") }
->   | EXPR '..' EXPR BY EXPR   { R $1 $3 $5 }
->   | '#' EXPR                 { U $1 $2 }
->   | '@' EXPR                 { U $1 $2 }
->   | '~' EXPR                 { U $1 $2 }
->   | '-' EXPR %prec NEG       { U $1 $2  }
->   | '+' EXPR %prec PLUS      { U $1 $2  }
->   | '!' EXPR                 { U $1 $2 }
->   | EXPR '[' EXPR ']'        { B "[]" $1 $3 }
+>   : CHAR                     {% returnM  ( Char $1 ) }
+>   | NUMBER                   {% returnM  ( Number $1 ) }
+>   | BOOL                     {% returnM  ( Bool $1 ) }
+>   | STRING                   {% returnM  ( Str $1 ) }
+>   | IDENT                    {% returnM  ( Var (saveIdent $1) ) }
+>   | IDENT '(' LISTAONADA ')' {% returnM  ( FunctionCall (saveIdent $1) $3 ) }
+>   | EXPR '.' EXPR            {% returnM  ( B "." $1 $3  ) }
+>   | EXPR AS IDENT            {% returnM  ( TypeCast $1 (saveIdent $3) ) }
+>   | '(' EXPR ')'             {% returnM  ( $2 ) }
+>   | EXPR '+' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '-' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '*' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '/' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '&&' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '||' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '^' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '==' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '!=' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '>' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '>=' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '<' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '<=' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '**' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '>>' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '<<' EXPR           {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '|' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '&' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '%' EXPR            {% returnM  ( B $2 $1 $3 ) }
+>   | EXPR '..' EXPR           {% returnM  ( R $1 $3 (Number "1") ) }
+>   | EXPR '..' EXPR BY EXPR   {% returnM  ( R $1 $3 $5 ) }
+>   | '#' EXPR                 {% returnM  ( U $1 $2 ) }
+>   | '@' EXPR                 {% returnM  ( U $1 $2 ) }
+>   | '~' EXPR                 {% returnM  ( U $1 $2 ) }
+>   | '-' EXPR %prec NEG       {% returnM  ( U $1 $2  ) }
+>   | '+' EXPR %prec PLUS      {% returnM  ( U $1 $2  ) }
+>   | '!' EXPR                 {% returnM  ( U $1 $2 ) }
+>   | EXPR '[' EXPR ']'        {% returnM  ( B "[]" $1 $3 ) }
+-- >   | '(' error ')' { Str "error" }
 
 > LISTAONADA
->   :                        { [] }
->   | POSITIONAL             { $1 }
->   | BYNAMES                { $1 }
->   | POSITIONAL ',' BYNAMES { $1 ++ $3 }
+>   :                        {% returnM  ( [] ) }
+>   | POSITIONAL             {% returnM  ( $1 ) }
+>   | BYNAMES                {% returnM  ( $1 ) }
+>   | POSITIONAL ',' BYNAMES {% returnM  ( $1 ++ $3 ) }
 
 > POSITIONAL
->   : POSITIONAL ',' EXPR { $1 ++ [(Nothing, $3)]}
->   | EXPR                { [(Nothing, $1)] }
+>   : POSITIONAL ',' EXPR {% returnM  ( $1 ++ [(Nothing, $3)]) }
+>   | EXPR                {% returnM  ( [(Nothing, $1)] ) }
 
 > BYNAMES
->   : BYNAMES ',' IDENT '=' EXPR  { $1 ++ [(Just (saveIdent $3), $5)] }
->   | IDENT '=' EXPR              { [(Just (saveIdent $1), $3)] }
+>   : BYNAMES ',' IDENT '=' EXPR  {% returnM  ( $1 ++ [(Just (saveIdent $3), $5)] ) }
+>   | IDENT '=' EXPR              {% returnM  ( [(Just (saveIdent $1), $3)] ) }
 
 > EXPRLIST
->   : EXPRLIST ',' EXPR { $1 ++ [$3] }
->   | EXPR              { [$1] }
+>   : EXPRLIST ',' EXPR {% returnM  ( $1 ++ [$3] ) }
+>   | EXPR              {% returnM  ( [$1] ) }
 
 > RETURNP
->   : RETURN      { Return Nothing }
->   | RETURN EXPR { Return (Just $2) }
+>   : RETURN      {% returnM  ( Return Nothing ) }
+>   | RETURN EXPR {% returnM  ( Return (Just $2) ) }
 
 > FIELDS
->   : FIELD            { [$1] }
->   | FIELDS ',' FIELD { $1 ++ [$3] }
+>   : FIELD            {% returnM  ( [$1] ) }
+>   | FIELDS ',' FIELD {% returnM  ( $1 ++ [$3] ) }
 
-> FIELD : LISTAVARIABLES ':' TYPEN { ($3, $1) }
+> FIELD : LISTAVARIABLES ':' TYPEN {% returnM  ( ($3, $1) ) }
 
 > LISTAVARIABLES
->   : IDENT INIT                    { [(saveIdent $1, $2)] }
->   | LISTAVARIABLES ',' IDENT INIT { $1 ++ [(saveIdent $3, $4)] }
+>   : IDENT INIT                    {% returnM  ( [(saveIdent $1, $2)] ) }
+>   | LISTAVARIABLES ',' IDENT INIT {% returnM  ( $1 ++ [(saveIdent $3, $4)] ) }
 
 > INIT
->   :          { Nothing }
->   | '=' EXPR { Just $2 }
+>   :          {% returnM  ( Nothing ) }
+>   | '=' EXPR {% returnM  ( Just $2 ) }
 
-> PRINTP : PRINT EXPRLIST { Print $2 }
+> PRINTP : PRINT EXPRLIST {% returnM  ( Print $2 ) }
 
-> GRABP : GRAB EXPR { Grab $2 }
+> GRABP : GRAB EXPR {% returnM   ( Grab $2 ) }
 
 > {
 
+
+> returnM = return
+> bindM = (>>=)
 > data Type = Type Ident
 >           | ArrayOf Type [Maybe Expr]
 >           | ReferenceTo Type
@@ -354,12 +361,14 @@
 >     where (AlexPn _ line col) = a
 
 > type ParseError = String
-> type Parser = Either (ParseError, [Lexeme])
+> type Parser = EitherT (ParseError, [Lexeme]) (Writer [ParseError])
 
 > showPosn (AlexPn _ line col) = show line ++ ':': show col
 
 > happyError :: [Lexeme] -> Parser a
-> happyError tokens = Left $ ("Error en reconocimiento: lexema inesperado", tokens)
+> happyError tokens = failM ("Error en reconocimiento: lexema inesperado", tokens)
+
+> failM a = EitherT $ return (Left a)
 
 > parseTokens tokens = parser tokens
 
