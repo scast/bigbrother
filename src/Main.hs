@@ -1,38 +1,40 @@
 module Main where
 import qualified Parser
 import Lexer
+import Control.Lens
 import Control.Monad.Writer hiding ((<>))
-import Table
+import qualified Table as T
 import System.Environment
 import Control.Monad.RWS hiding ((<>))
 import Text.PrettyPrint
 import System.Console.ANSI
+import qualified ParserTypes as P
 import qualified Data.Map as M
 import Data.List (intercalate)
 import Control.Monad.Trans.Either
 
-prettySymbolTable :: Table -> Int -> Doc
+prettySymbolTable :: T.Table -> Int -> Doc
 prettySymbolTable table ubic
   = (text "{")
   $$ (imprimirSimbolos table (ubic+1))
   $$ (imprimirHijos table (ubic+1))
   $$ (text "}")
 
-imprimirSimbolos table ubic = text "Symbols:" $$ M.foldl' f empty (mapping table)
+imprimirSimbolos table ubic = text "Symbols:" $$ M.foldl' f empty (view T.mapping table)
   where f a b = a $$ nest 3 (imprimirSimbolo b ubic)
 
 imprimirHijos table ubic =
-  text "Sons:" $$ foldl f empty (sons table)
+  text "Sons:" $$ foldl f empty (view T.sons table)
     where f a b = a $$ nest 3 (prettySymbolTable b ubic)
 
-imprimirSimbolo (TypeDeclaration (Parser.Ident nombre l c) table) ubic =
+imprimirSimbolo (T.TypeDeclaration (P.Ident nombre l c) table) ubic =
   text "Type => "
   <> text (nombre ++ " ")
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
 
-imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) _ =
+imprimirSimbolo (T.Variable (P.Ident nombre l c) kind) _ =
   text "Variable => "
   <> text (nombre ++ " ")
   <> (if (l > 0 && c > 0)
@@ -40,7 +42,7 @@ imprimirSimbolo (Variable (Parser.Ident nombre l c) kind) _ =
      else empty)
   <> text (" " ++ show kind)
 
-imprimirSimbolo (Function (Parser.Ident nombre l c) table) ubic =
+imprimirSimbolo (T.Function (P.Ident nombre l c) table) ubic =
   text "Function => "
   <> text (nombre ++ " ")
   <> (if (l > 0 && c > 0)
@@ -79,7 +81,7 @@ dropUntilFirstToTheRight (Just match) atleast tokens = (matched, newList)
 -- Tecnica "Dale que el golpe avisa", brought to you by dos futuros
 -- IDE operators de la república.
 -- Razones para esto están por ahí en un email.
-tryParse :: [Lexeme] -> IO [Parser.Global]
+tryParse :: [Lexeme] -> IO [P.Global]
 tryParse tokens = do
   case runWriter (runEitherT (Parser.parseTokens tokens)) of
     (eitherTree, []) -> case eitherTree of
@@ -146,8 +148,8 @@ main = do
   mapM_ putStrLn errors
   -- run parser
   tree <- tryParse tokens
-  let (st, w) = execRWS build tree (GeneratorState emptyTable [])
+  let (st, w) = execRWS T.buildM tree (T.GeneratorState T.empty [])
   setSGR [SetColor Foreground Vivid Red]
   mapM_ putStrLn w
   setSGR [SetColor Foreground Vivid White]
-  putStrLn $ render $ prettySymbolTable (current st) 0
+  putStrLn $ render $ prettySymbolTable (view T.current st) 0

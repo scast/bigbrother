@@ -3,6 +3,9 @@ module Table ( buildM
              , buildTable
              , empty
              , lookup
+             , sons
+             , current
+             , mapping
              , GeneratorState(..)
              , Symbol(..)
              , Table(..)
@@ -12,7 +15,7 @@ import qualified Data.Map as M
 import Prelude hiding (lookup)
 import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe)
 import Control.Monad.RWS
-import Control.Lens -- have no fear.
+import Control.Lens hiding (mapping) -- have no fear.
 
 
 data Extended = Struct | Enum | Union
@@ -373,6 +376,7 @@ addGlobals newTable = do
   current.mapping .= M.union (st^.current.mapping) shallow
   mapM_ addGlobals (newTable^.sons)
 
+-- | Handle a global instruction.
 handleGlobal :: P.Global -> Generator b ()
 handleGlobal global@(P.Function ident@(P.Ident name _ _) vars ptype insts) = do
   st <- get
@@ -408,7 +412,9 @@ buildM = do
   -- Perform a full (recursive) pass now.
   forM_ tree handleGlobal
 
-  globalTable <- gets (_current)
+  -- Make sure the language table has the current table (the global
+  -- table) as a son
   path .= []
   current .= languageTable
+  globalTable <- use current
   current.sons <>= [globalTable]
