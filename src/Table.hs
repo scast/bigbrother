@@ -376,7 +376,9 @@ addGlobals newTable = do
   current.mapping .= M.union (st^.current.mapping) shallow
   mapM_ addGlobals (newTable^.sons)
 
--- | Handle a global instruction.
+-- | Handle a global instruction. Only functions and extended types
+-- need to be considered since typedefs and variable declarations were
+-- handled on shallow pass.
 handleGlobal :: P.Global -> Generator b ()
 handleGlobal global@(P.Function ident@(P.Ident name _ _) vars ptype insts) = do
   st <- get
@@ -386,6 +388,8 @@ handleGlobal global@(P.Function ident@(P.Ident name _ _) vars ptype insts) = do
   current.sons <>= [s^.current]
   current.mapping.at name ?= (Function ident (s^.current))
 
+-- | In the special case of type declarations, it must link typenames
+-- and enum variables to the global scope.
 handleGlobal global@(P.DefCombine tipo) = do
   st <- get
   let initial = GeneratorState empty [st^.current, languageTable]
@@ -399,7 +403,10 @@ handleGlobal global@(P.DefCombine tipo) = do
 handleGlobal _ = return ()
 
 
--- | Builds our symbol table recursively.
+-- | Builds our symbol table recursively. Initially, performs a
+-- shallow pass to gather global symbols which allows calling
+-- functions and types not declared yet. Then, performs a full pass
+-- over the parsed tree.
 buildM :: Generator [P.Global] ()
 buildM = do
   tree <- ask
