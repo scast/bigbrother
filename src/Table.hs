@@ -37,23 +37,24 @@ data GeneratorState = GeneratorState { _current :: Table
 
 type Generator b a = RWS b [String] GeneratorState  a
 
+-- Lens me maybe.
 makeLenses ''Table
 makeLenses ''GeneratorState
 
--- An empty symbol table.
+-- | An empty symbol table.
 empty :: Table
 empty = Table { _mapping = M.empty
               , _sons = [] }
 
--- Look up a symbol on the set of active tables
+-- | Look up a symbol on the set of active tables
 lookup :: String -> [Table] -> Maybe Symbol
 lookup k xs = xs ^? traverse.mapping.ix k
 
--- Checks if a symbol is in the track of tables
+-- | Checks if a symbol is in the track of tables
 member :: String -> [Table] -> Bool
 member k xs = maybe False (\x -> True) $ lookup k xs
 
--- Default symbols in the language.
+-- | Default symbols in the language.
 languageSymbols = M.fromList [
   --- Integers
   ("int8", TypeDeclaration (P.Ident "int8" (-1) (-1))  empty),
@@ -80,16 +81,17 @@ languageSymbols = M.fromList [
   ("string", TypeDeclaration (P.Ident "string" (-1) (-1)) empty)
   ]
 
+-- | Default language table.
 languageTable :: Table
 languageTable = Table { _mapping = languageSymbols
                       , _sons = [] }
 
--- Print position where this symbol was defined
+-- | Print position where this symbol was defined
 showPosition :: Symbol -> String
 showPosition sym = let id = ident sym
                    in show (P.line id) ++ ":" ++ show (P.column id)
 
--- Get a type from the tables using its name or store an error.
+-- | Get a type from the tables using its name or store an error.
 findType :: String -> Generator b (Maybe Symbol)
 findType k = do
   st <- get
@@ -97,7 +99,7 @@ findType k = do
     result@(Just (TypeDeclaration _ _)) -> return result
     x -> tell ["Unknown type " ++ k] >> return x
 
--- Get a type from the tables using its type structure or store an
+-- | Get a type from the tables using its type structure or store an
 -- error.
 typeSymbol :: P.Type -> Generator b (Maybe Symbol)
 typeSymbol = findType . typename
@@ -109,7 +111,7 @@ typeSymbol = findType . typename
         typename (P.TypeUnion (P.Ident x _ _) _) = x
 
 
--- Check if a symbol exists otherwise stores an error.
+-- | Check if a symbol exists otherwise stores an error.
 checkExists :: String -> Generator b ()
 checkExists name = do
   st <- get
@@ -117,7 +119,7 @@ checkExists name = do
   then return ()
   else tell ["Symbol " ++ (name) ++ "has not been defined."]
 
--- Check if a symbol has already been defined.
+-- | Check if a symbol has already been defined.
 checkNotExists :: String -> Generator b () -> Generator b ()
 checkNotExists k cb = do
   st <- get
@@ -126,7 +128,7 @@ checkNotExists k cb = do
                          ++ showPosition symbol]
     Nothing  -> cb
 
--- Check if an expression is OK.
+-- | Check if an expression is OK.
 checkExpr :: P.Expr -> Generator b ()
 checkExpr (P.B "." l r) = checkExpr l
 checkExpr (P.B _ l r) = checkExpr l >> checkExpr r
@@ -141,7 +143,7 @@ checkExpr (P.TypeCast e (P.Ident name _ _)) = checkExpr e >> checkExists name
 checkExpr (P.R l r step) = checkExpr l >> checkExpr r >> checkExpr step
 
 
--- Check that `ptype` exists and check current scope for the existence
+-- | Check that `ptype` exists and check current scope for the existence
 -- of the new symbol name. If `ptype` exists and the symbol name
 -- doesn't, then go ahead and create the new symbol.
 check_ :: String -> P.Type -> Generator b () -> Generator b ()
@@ -155,7 +157,7 @@ check_ name ptype callback = do
     (Just symbol, Nothing) -> callback
     (_, Nothing) -> return ()
 
--- Checks whether or not a symbol has been defined already in the
+-- | Checks whether or not a symbol has been defined already in the
 -- current scope.
 check :: String -> Generator b () -> Generator b ()
 check name callback = do
@@ -165,21 +167,21 @@ check name callback = do
                          ++ showPosition symbol]
     Nothing -> callback
 
--- Add a new variable to the current table or store an error on failure.
+-- | Add a new variable to the current table or store an error on failure.
 addVariable :: P.Ident -> P.VKind -> P.Type -> Generator b ()
 addVariable ident@(P.Ident name _ _) kind ptype =
   check_ name ptype $ do
     let newSymbol = Variable ident kind
     current.mapping.at name ?= newSymbol
 
--- Adds a new typedef to the current table or stores an error on failure.
+-- | Adds a new typedef to the current table or stores an error on failure.
 addTypedef :: P.Ident -> P.Type -> Generator b ()
 addTypedef ident@(P.Ident name _ _) ptype =
   check_ name ptype $ do
     let newSymbol = TypeDeclaration ident empty
     current.mapping.at name ?= newSymbol
 
--- Adds a new extended function (shallow pass) to the current table or
+-- | Adds a new extended function (shallow pass) to the current table or
 -- stores an error on failure.
 addShallowFunction :: P.Ident -> P.Type -> Generator b ()
 addShallowFunction ident@(P.Ident name _ _) ptype =
@@ -187,7 +189,7 @@ addShallowFunction ident@(P.Ident name _ _) ptype =
     let newSymbol = Function ident empty
     current.mapping.at name ?= newSymbol
 
--- Adds a new extended type (shallow pass) to the current table or
+-- | Adds a new extended type (shallow pass) to the current table or
 -- stores an error on failure.
 addShallowType :: P.Type -> Generator b ()
 addShallowType ptype = do
@@ -200,7 +202,7 @@ addShallowType ptype = do
         name = P.identName ident
     current.mapping.at name ?= newSymbol
 
--- Do a shallow pass over the global definitions and adds them to the
+-- | Do a shallow pass over the global definitions and adds them to the
 -- table
 shallowPass :: Generator [P.Global] ()
 shallowPass = do
@@ -223,7 +225,7 @@ shallowPass = do
       P.DefCombine tipo ->
         addShallowType tipo
 
--- Build a new table in the new scope.
+-- | Build a new table in the new scope.
 trackAndBuild :: Table -> [P.Instruction] -> Generator b ()
 trackAndBuild table tree = do
   st <- get
@@ -236,7 +238,7 @@ trackAndBuild table tree = do
   tell acc
   current.sons <>= [final^.current]
 
--- Handle each kind of instruction.
+-- | Handle each kind of instruction.
 handleInstruction :: P.Instruction -> Generator b ()
 handleInstruction inst = case inst of
   -- Local variable declaration (and initialization)
@@ -288,6 +290,7 @@ handleInstruction inst = case inst of
   _ -> return ()
 
 
+-- | Handle a function at the global level.
 handleFunction :: P.Global -> Generator [P.Global] ()
 handleFunction (P.Function ident parameters ptype insts) = do
   forM_ parameters $ \(pident, init, ptype) -> do
@@ -311,6 +314,7 @@ handleFunction (P.Function ident parameters ptype insts) = do
     -- Handle each instruction of this function.
     forM_ insts handleInstruction
 
+-- | Handle a complex (extended) type at the global.
 handleComplexType :: P.Type -> Generator b () -> Generator b ()
 handleComplexType tipo callback = do
   st <- get
@@ -333,7 +337,7 @@ handleComplexType tipo callback = do
       current.mapping.at name ?= (TypeDeclaration tident (s^.current))
       callback
 
-
+-- | Handle the list of definitions.
 handleListDef :: [(P.Type, [P.Initialization])] -> Generator b ()
 handleListDef xs =
   forM_ xs $ \(tipo, inits) -> do
@@ -341,7 +345,7 @@ handleListDef xs =
       forM_ inits $ \(tident@(P.Ident name _ _), init) -> do
         addVariable tident P.ExtendedTypeVar tipo
 
-
+-- | Handle a type.
 handleType :: P.Type -> Generator b ()
 handleType ptype = case ptype of
   P.TypeEnum ident inits ->
@@ -352,11 +356,13 @@ handleType ptype = case ptype of
   P.TypeUnion ident xs -> handleListDef xs
 
 
--- Build a new table from a given a starting tree, a monadic action to
+-- | Build a new table from a given a starting tree, a monadic action to
 -- perform and the starting state.
 buildTable :: Generator a () -> a -> GeneratorState -> (GeneratorState, [String])
 buildTable = execRWS
 
+-- | Adds the new symbols from the declaration of types or enumeration
+-- variables.
 addGlobals :: Table -> Generator b ()
 addGlobals newTable = do
   st <- get
@@ -389,7 +395,7 @@ handleGlobal global@(P.DefCombine tipo) = do
 handleGlobal _ = return ()
 
 
--- Builds our symbol table recursively.
+-- | Builds our symbol table recursively.
 buildM :: Generator [P.Global] ()
 buildM = do
   tree <- ask
@@ -400,5 +406,9 @@ buildM = do
   shallowPass
 
   -- Perform a full (recursive) pass now.
-  st <- get
   forM_ tree handleGlobal
+
+  globalTable <- gets (_current)
+  path .= []
+  current .= languageTable
+  current.sons <>= [globalTable]
