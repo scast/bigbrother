@@ -6,12 +6,13 @@ fn abs(n:int):int {
 	}
 }
 
-struct point {
-    x, y : double
-};
-
 struct rect {
-    p1, p2 : point,
+    p1, p2 : struct point {
+        x, y : double,
+        deep: struct raro {
+            x, y: double
+        }
+    },
     fill_color : enum color {
         red, blue, green
     }
