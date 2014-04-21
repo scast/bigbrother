@@ -228,7 +228,7 @@ shallowPass = do
       P.DefCombine tipo ->
         addShallowType tipo
 
--- | Build a new table in the new scope.
+-- | Build a new table in the new scope of the instruction.
 trackAndBuild :: Table -> [P.Instruction] -> Generator b ()
 trackAndBuild table tree = do
   st <- get
@@ -241,7 +241,7 @@ trackAndBuild table tree = do
   tell acc
   current.sons <>= [final^.current]
 
--- | Handle each kind of instruction.
+-- | Handle each kind of instruction and perform static checks.
 handleInstruction :: P.Instruction -> Generator b ()
 handleInstruction inst = case inst of
   -- Local variable declaration (and initialization)
@@ -317,7 +317,7 @@ handleFunction (P.Function ident parameters ptype insts) = do
     -- Handle each instruction of this function.
     forM_ insts handleInstruction
 
--- | Handle a complex (extended) type at the global.
+-- | Handle a complex (extended) type declaration.
 handleComplexType :: P.Type -> Generator b () -> Generator b ()
 handleComplexType tipo callback = do
   st <- get
@@ -340,7 +340,8 @@ handleComplexType tipo callback = do
       current.mapping.at name ?= (TypeDeclaration tident (s^.current))
       callback
 
--- | Handle the list of definitions.
+-- | Handle the list of definitions in a type (struct or union)
+-- declaration.
 handleListDef :: [(P.Type, [P.Initialization])] -> Generator b ()
 handleListDef xs =
   forM_ xs $ \(tipo, inits) -> do
@@ -348,7 +349,7 @@ handleListDef xs =
       forM_ inits $ \(tident@(P.Ident name _ _), init) -> do
         addVariable tident P.ExtendedTypeVar tipo
 
--- | Handle a type.
+-- | Handle a type declaration.
 handleType :: P.Type -> Generator b ()
 handleType ptype = case ptype of
   P.TypeEnum ident inits ->
@@ -405,8 +406,8 @@ handleGlobal _ = return ()
 
 -- | Builds our symbol table recursively. Initially, performs a
 -- shallow pass to gather global symbols which allows calling
--- functions and types not declared yet. Then, performs a full pass
--- over the parsed tree.
+-- functions and global types not declared yet. Then, performs a full
+-- pass over the parsed tree.
 buildM :: Generator [P.Global] ()
 buildM = do
   tree <- ask
