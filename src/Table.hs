@@ -11,7 +11,7 @@ import qualified ParserTypes as P
 import qualified Data.Map as M
 import Prelude hiding (lookup)
 import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe)
-import Control.Monada.RWS
+import Control.Monad.RWS
 import Control.Lens -- have no fear.
 
 
