@@ -61,7 +61,7 @@ executable BigBrother
   
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.6 && <4.7, array >=0.4 && <0.5, mtl, containers, pretty, 
-                       ansi-terminal, either, lens
+                       ansi-terminal, either, lens, lca
   
   -- Directories containing source files.
   hs-source-dirs:      .
