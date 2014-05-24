@@ -281,9 +281,10 @@ Para variar el paso, se puede utilizar la notación extendida:
 `<inicial>..<final> by <paso>`
 
 Los rangos no representan un tipo concreto dentro del lenguaje. Son un
-atajo para operaciones comunes, no se pueden asignar, no se pueden
-pasar como parámetro a ninguna función, y no se pueden retornar como
-resultado de ninguna función.
+atajo para operaciones comunes.  En caso de ser asignados, pasados como
+parametros, retornados de alguna funcion, o en general usados como un 
+tipo concreto serán reinterpretados como un arreglo del tamaño del rango 
+donde cada posición tiene cada elemento del rango. 
 
 Ejemplos
 ---------
