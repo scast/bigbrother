@@ -133,7 +133,7 @@ checkNotExists k cb = do
 
 -- | Check if an expression is OK.
 checkExpr :: P.Expr -> Generator b ()
-checkExpr (P.B "." l r) = checkExpr l
+checkExpr (P.Field e (P.Ident name _ _ )) = checkExpr e >> checkExists name
 checkExpr (P.B _ l r) = checkExpr l >> checkExpr r
 checkExpr (P.U _ u) = checkExpr u
 checkExpr (P.Char _) = return ()

@@ -38,6 +38,7 @@ data Global = GlobalVar VKind Type [Initialization]
 
 data Expr = B String Expr Expr
           | U String Expr
+          | Field Expr Ident
           | Char String
           | Number String
           | Bool String

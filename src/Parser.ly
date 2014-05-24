@@ -230,7 +230,7 @@
 >   | STRING                   {% returnM  ( Str $1 ) }
 >   | IDENT                    {% returnM  ( Var (saveIdent $1) ) }
 >   | IDENT '(' LISTAONADA ')' {% returnM  ( FunctionCall (saveIdent $1) $3 ) }
->   | EXPR '.' EXPR            {% returnM  ( B "." $1 $3  ) }
+>   | EXPR '.' IDENT           {% returnM  ( Field $1 (saveIdent $3) ) }
 >   | EXPR AS IDENT            {% returnM  ( TypeCast $1 (saveIdent $3) ) }
 >   | '(' EXPR ')'             {% returnM  ( $2 ) }
 >   | EXPR '+' EXPR            {% returnM  ( B $2 $1 $3 ) }
