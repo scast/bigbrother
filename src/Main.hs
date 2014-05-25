@@ -27,9 +27,10 @@ imprimirHijos table ubic =
   text "Sons:" $$ foldl f empty (view T.sons table)
     where f a b = a $$ nest 3 (prettySymbolTable b ubic)
 
-imprimirSimbolo (T.TypeDeclaration (P.Ident nombre l c) table) ubic =
+imprimirSimbolo (T.TypeDeclaration (P.Ident nombre l c) table tp) ubic =
   text "Type => "
   <> text (nombre ++ " ")
+  <> text ("type definition: " ++ (show tp))
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)

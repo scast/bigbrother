@@ -12,6 +12,7 @@ module Table ( buildM
              ) where
 import qualified ParserTypes as P
 import qualified Data.Map as M
+import qualified TypeChecking as T
 import Prelude hiding (lookup)
 import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe)
 import Control.Monad.RWS
@@ -22,11 +23,16 @@ data Extended = Struct | Enum | Union
               deriving (Show, Eq, Ord)
 
 data Symbol = TypeDeclaration { ident :: P.Ident
-                              , {- Type -} table :: Table }
+                              , table :: Table
+                              , stype :: T.Type }
             | Variable { ident :: P.Ident
-                       , vkind :: P.VKind } -- Type}
+                       , vkind :: P.VKind
+                       -- , stype :: T.Type
+                       }
             | Function { ident :: P.Ident
-                       ,  {- Type -} table :: Table }
+                       , table :: Table
+                       -- , stype :: T.Type
+                       }
             deriving (Show, Eq, Ord)
 
 
@@ -60,28 +66,15 @@ member k xs = maybe False (\x -> True) $ lookup k xs
 -- | Default symbols in the language.
 languageSymbols = M.fromList [
   --- Integers
-  ("int8", TypeDeclaration (P.Ident "int8" (-1) (-1))  empty),
-  ("int16", TypeDeclaration (P.Ident "int16" (-1) (-1)) empty),
-  ("int32", TypeDeclaration (P.Ident "int32" (-1) (-1)) empty),
-  ("int64", TypeDeclaration (P.Ident "int64" (-1) (-1)) empty),
-  ("int",  TypeDeclaration (P.Ident "int" (-1) (-1)) empty),
-  ("long", TypeDeclaration  (P.Ident "long" (-1) (-1)) empty),
-
+  ("int",  TypeDeclaration (P.Ident "int" (-1) (-1)) empty T.Int32),
   --- Float
-  ("float32", TypeDeclaration (P.Ident "float32" (-1) (-1)) empty),
-  ("float64", TypeDeclaration (P.Ident "float64" (-1) (-1)) empty),
-  ("float", TypeDeclaration  (P.Ident "float" (-1) (-1)) empty),
-  ("double", TypeDeclaration  (P.Ident "double" (-1) (-1)) empty),
-
+  ("float", TypeDeclaration  (P.Ident "float" (-1) (-1)) empty T.Float),
   -- Characters
-  ("char", TypeDeclaration (P.Ident "char" (-1) (-1)) empty),
-
+  ("char", TypeDeclaration (P.Ident "char" (-1) (-1)) empty T.Char),
   -- Booleans
-  ("bool", TypeDeclaration (P.Ident "bool" (-1) (-1)) empty),
-  ("void", TypeDeclaration (P.Ident "void" (-1) (-1)) empty),
-
-  -- String
-  ("string", TypeDeclaration (P.Ident "string" (-1) (-1)) empty)
+  ("bool", TypeDeclaration (P.Ident "bool" (-1) (-1)) empty T.Bool),
+  -- Void
+  ("void", TypeDeclaration (P.Ident "void" (-1) (-1)) empty T.Void)
   ]
 
 -- | Default language table.
@@ -99,7 +92,7 @@ findType :: String -> Generator b (Maybe Symbol)
 findType k = do
   st <- get
   case lookup k (st^.current:st^.path) of
-    result@(Just (TypeDeclaration _ _)) -> return result
+    result@(Just (TypeDeclaration _ _ _)) -> return result
     x -> tell ["Unknown type " ++ k] >> return x
 
 -- | Get a type from the tables using its type structure or store an
@@ -133,7 +126,7 @@ checkNotExists k cb = do
 
 -- | Check if an expression is OK.
 checkExpr :: P.Expr -> Generator b ()
-checkExpr (P.Field e (P.Ident name _ _ )) = checkExpr e >> checkExists name
+checkExpr (P.Field e (P.Ident name _ _ )) = checkExpr e -- >> checkExists name
 checkExpr (P.B _ l r) = checkExpr l >> checkExpr r
 checkExpr (P.U _ u) = checkExpr u
 checkExpr (P.Char _) = return ()
@@ -149,7 +142,7 @@ checkExpr (P.R l r step) = checkExpr l >> checkExpr r >> checkExpr step
 -- | Check that `ptype` exists and check current scope for the existence
 -- of the new symbol name. If `ptype` exists and the symbol name
 -- doesn't, then go ahead and create the new symbol.
-check_ :: String -> P.Type -> Generator b () -> Generator b ()
+check_ :: String -> P.Type -> (Symbol -> Generator b ()) -> Generator b ()
 check_ name ptype callback = do
   st <- get
   stype <- typeSymbol ptype
@@ -157,7 +150,7 @@ check_ name ptype callback = do
   case (stype, st^.current.mapping.at name) of
     (_, Just symbol) -> tell ["Symbol " ++ name ++ "has already been defined at "
                               ++ showPosition symbol]
-    (Just symbol, Nothing) -> callback
+    (Just symbol, Nothing) -> callback symbol
     (_, Nothing) -> return ()
 
 -- | Checks whether or not a symbol has been defined already in the
@@ -173,22 +166,24 @@ check name callback = do
 -- | Add a new variable to the current table or store an error on failure.
 addVariable :: P.Ident -> P.VKind -> P.Type -> Generator b ()
 addVariable ident@(P.Ident name _ _) kind ptype =
-  check_ name ptype $ do
+  check_ name ptype $ \_ -> do
     let newSymbol = Variable ident kind
     current.mapping.at name ?= newSymbol
 
 -- | Adds a new typedef to the current table or stores an error on failure.
 addTypedef :: P.Ident -> P.Type -> Generator b ()
 addTypedef ident@(P.Ident name _ _) ptype =
-  check_ name ptype $ do
-    let newSymbol = TypeDeclaration ident empty
-    current.mapping.at name ?= newSymbol
+  check_ name ptype $ \foundSymbol -> do
+    case foundSymbol of
+      TypeDeclaration _ _ stype -> do
+        let newSymbol = TypeDeclaration ident empty (T.TypeDef stype)
+        current.mapping.at name ?= newSymbol
 
 -- | Adds a new extended function (shallow pass) to the current table or
 -- stores an error on failure.
 addShallowFunction :: P.Ident -> P.Type -> Generator b ()
 addShallowFunction ident@(P.Ident name _ _) ptype =
-  check_ name ptype $ do
+  check_ name ptype $ \_ -> do
     let newSymbol = Function ident empty
     current.mapping.at name ?= newSymbol
 
@@ -201,7 +196,7 @@ addShallowType ptype = do
         P.TypeEnum id _ -> (id, Enum)
         P.TypeUnion id _ -> (id, Union)
   checkNotExists (P.identName ident) $ do
-    let newSymbol = TypeDeclaration ident empty
+    let newSymbol = TypeDeclaration ident empty T.Char -- FIXME: fix.
         name = P.identName ident
     current.mapping.at name ?= newSymbol
 
@@ -337,7 +332,7 @@ handleComplexType tipo callback = do
       current.sons <>= [s^.current]
       let tident = P.typeIdent tipo
           name = P.identName tident
-      current.mapping.at name ?= (TypeDeclaration tident (s^.current))
+      current.mapping.at name ?= (TypeDeclaration tident (s^.current) T.Char) -- FIXME: FIXME
       callback
 
 -- | Handle the list of definitions in a type (struct or union)
@@ -355,7 +350,7 @@ handleType ptype = case ptype of
   P.TypeEnum ident inits ->
     forM_ inits $ \(tident@(P.Ident name _ _), init) -> do
       checkNotExists name $
-        addVariable tident P.EnumVar (P.Type (P.Ident "int32" (-1) (-1)))
+        addVariable tident P.EnumVar (P.Type (P.Ident "int" (-1) (-1)))
   P.TypeStruct ident xs -> handleListDef xs
   P.TypeUnion ident xs -> handleListDef xs
 
@@ -372,7 +367,7 @@ addGlobals newTable = do
   st <- get
   let shallow = M.foldlWithKey f M.empty (newTable^.mapping)
       f accum key x@(Variable _ P.EnumVar) = M.insert key x accum
-      f accum key x@(TypeDeclaration _ _) = M.insert key x accum
+      f accum key x@(TypeDeclaration _ _ _) = M.insert key x accum -- FIXME
       f accum _ _ = accum
   current.mapping .= M.union (st^.current.mapping) shallow
   mapM_ addGlobals (newTable^.sons)
@@ -398,7 +393,7 @@ handleGlobal global@(P.DefCombine tipo) = do
   tell w
   current.sons <>= [s^.current]
   let name = (P.identName (P.typeIdent tipo))
-  current.mapping.at name ?= (TypeDeclaration (P.typeIdent tipo) (s^.current))
+  current.mapping.at name ?= (TypeDeclaration (P.typeIdent tipo) (s^.current) T.Char) -- FIXME: here
   addGlobals (s^.current)
 
 handleGlobal _ = return ()

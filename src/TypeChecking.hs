@@ -9,7 +9,7 @@ data Type = Char
           | Float
           | Bool
           | Void
-          | Array { dimensions :: (Int, Int)
+          | Array { dimensions :: Maybe (Int, Int)
                   , stype :: Type }
           | Record { rfields :: [(String, Type)] }
           | Union { rfields :: [(String, Type)] }
@@ -17,9 +17,7 @@ data Type = Char
           | ReferenceTo Type
           | Function { domain :: [Type],
                        range :: Type }
-          | Range { start :: Int
-                  , end :: Int
-                  , step :: Int }
+          | TypeDef { stype :: Type }
           deriving (Eq, Ord, Show, Read)
 
 path :: Type -> LCA.Path Type
@@ -48,6 +46,7 @@ boperator :: String -> Type -> Type -> Maybe Type
 -- references!
 -- toperator ".."
 -- boperator "."
+-- check range bounds! it must be increasing.
 
 -- Define what can be casted explicitly.
 boperator "AS" Int32 Float = Just Float
@@ -62,9 +61,9 @@ boperator "AS" Bool Char = Just Char
 boperator "AS" Char Int32 = Just Int32
 boperator "AS" Char Bool = Just Int32
 boperator "AS" Char Float = Just Int32
-boperator "AS" (Array (x, y) t) (Array (x', y') t') =
+boperator "AS" (Array (Just (x, y)) t) (Array (Just (x', y')) t') =
   if (y-x) >= (y'-x') && isJust (boperator "AS" t t')
-  then Just (Array (x', y') t')
+  then Just (Array (Just (x', y')) t')
   else Nothing
 boperator "AS" (Enum _) Int32 = Just Int32
 boperator "AS" (Enum _) Char = Just Char
@@ -130,7 +129,6 @@ boperator "&" Float Float = Just Float
 boperator "[]" (Array _ t) Int32 = Just t
 boperator "[]" (Array _ t) Float = Just t
 boperator "[]" (Array _ t) Char = Just t
-boperator "[]" (Array _ t) (Range x y z) = Just (Array (0, length [x,x+z..y]) t)
 
 -- Boolean operations.
 boperator "&&" Bool Bool = Just Bool
