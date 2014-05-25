@@ -157,10 +157,12 @@
 >   | IDENT DIMENSIONS {% returnM  ( ArrayOf (Type $ saveIdent $1) $2 ) }
 
 > DIMENSIONS
->   : '[' EXPR ']'            {% returnM  ( [Just $2] ) }
->   | '[' ']'                 {% returnM  ( [Nothing] ) }
->   | DIMENSIONS '[' EXPR ']' {% returnM  ( $1 ++ [Just $3] ) }
->   | DIMENSIONS '[' ']'      {% returnM  ( $1 ++ [Nothing] ) }
+>   : '[' NUMBER ']'            {% returnM  ( [Just (Number $2)] ) }
+>   | '[' NUMBER '..' NUMBER ']'            {% returnM  ([Just (R (Number $2) (Number $4) (Number "1"))]) }
+-- >   | '[' ']'                 {% returnM  ( [Nothing] ) }
+>   | DIMENSIONS '[' NUMBER ']' {% returnM  ( $1 ++ [Just (Number $3)] ) }
+>   | DIMENSIONS '[' NUMBER '..' NUMBER ']' {% returnM  ( $1 ++ [Just (R (Number $3) (Number $5) (Number "1"))] ) }
+-- >   | DIMENSIONS '[' ']'      {% returnM  ( $1 ++ [Nothing] ) }
 
 > INSTONADA
 >   :          {% returnM  ( [] ) }
@@ -252,8 +254,7 @@
 >   | EXPR '|' EXPR            {% returnM  ( B $2 $1 $3 ) }
 >   | EXPR '&' EXPR            {% returnM  ( B $2 $1 $3 ) }
 >   | EXPR '%' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '..' EXPR           {% returnM  ( R $1 $3 (Number "1") ) }
->   | EXPR '..' EXPR BY EXPR   {% returnM  ( R $1 $3 $5 ) }
+>   | NUMBER '..' NUMBER           {% returnM  ( R (Number $1) (Number $3) (Number "1") ) }
 >   | '#' EXPR                 {% returnM  ( U $1 $2 ) }
 >   | '@' EXPR                 {% returnM  ( U $1 $2 ) }
 >   | '~' EXPR                 {% returnM  ( U $1 $2 ) }

@@ -9,7 +9,8 @@ data Type = Char
           | Float
           | Bool
           | Void
-          | Array { dimensions :: Maybe (Int, Int)
+          | Array { size :: Int
+                  , bounds :: (Int, Int)
                   , stype :: Type }
           | Record { rfields :: [(String, Type)] }
           | Union { rfields :: [(String, Type)] }
@@ -61,10 +62,6 @@ boperator "AS" Bool Char = Just Char
 boperator "AS" Char Int32 = Just Int32
 boperator "AS" Char Bool = Just Int32
 boperator "AS" Char Float = Just Int32
-boperator "AS" (Array (Just (x, y)) t) (Array (Just (x', y')) t') =
-  if (y-x) >= (y'-x') && isJust (boperator "AS" t t')
-  then Just (Array (Just (x', y')) t')
-  else Nothing
 boperator "AS" (Enum _) Int32 = Just Int32
 boperator "AS" (Enum _) Char = Just Char
 boperator "AS" (Enum _) Float = Just Float
@@ -126,9 +123,9 @@ boperator "&" Char Char = Just Char
 boperator "&" Float Float = Just Float
 
 -- Array indexing. Coerce floats to ints...
-boperator "[]" (Array _ t) Int32 = Just t
-boperator "[]" (Array _ t) Float = Just t
-boperator "[]" (Array _ t) Char = Just t
+boperator "[]" (Array _ _  t) Int32 = Just t
+boperator "[]" (Array _ _ t) Float = Just t
+boperator "[]" (Array _ _ t) Char = Just t
 
 -- Boolean operations.
 boperator "&&" Bool Bool = Just Bool
@@ -183,9 +180,9 @@ boperator op t1 t2 = let anc = LCA.lca (path t1) (path t2)
 
 uoperator :: String -> Type -> Maybe Type
 uoperator "#" Char = Just Int32
-uoperator "#" (Array _ _) = Just Int32
+uoperator "#" (Array _ _ _) = Just Int32
 uoperator "@" Int32 = Just Char
-uoperator "@" (Array _ _) = Just Int32
+uoperator "@" (Array _ _ _) = Just Int32
 uoperator "~" Int32 = Just Int32
 uoperator "~" Float = Just Float
 uoperator "~" Char = Just Float
