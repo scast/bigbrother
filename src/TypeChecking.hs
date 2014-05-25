@@ -1,4 +1,6 @@
 module TypeChecking ( Type(..)
+                    , boperator
+                    , uoperator
                     ) where
 
 import Data.Maybe
@@ -16,8 +18,8 @@ data Type = Char
           | Union { rfields :: [(String, Type)] }
           | Enum { efields :: [String] }
           | ReferenceTo Type
-          | Function { domain :: [Type],
-                       range :: Type }
+          | Function { domain :: [(String, Type)]
+                     , range :: Type }
           | TypeDef { stype :: Type }
           deriving (Eq, Ord, Show, Read)
 
@@ -53,19 +55,31 @@ boperator :: String -> Type -> Type -> Maybe Type
 boperator "AS" Int32 Float = Just Float
 boperator "AS" Int32 Char = Just Char
 boperator "AS" Int32 Bool = Just Bool
+boperator "AS" Int32 Int32 = Just Int32
 boperator "AS" Float Int32 = Just Int32
 boperator "AS" Float Char = Just Char
 boperator "AS" Float Bool = Just Bool
+boperator "AS" Float Float = Just Float
 boperator "AS" Bool Int32 = Just Int32
 boperator "AS" Bool Float = Just Float
 boperator "AS" Bool Char = Just Char
+boperator "AS" Bool Bool = Just Bool
 boperator "AS" Char Int32 = Just Int32
 boperator "AS" Char Bool = Just Int32
 boperator "AS" Char Float = Just Int32
+boperator "AS" Char Char = Just Char
 boperator "AS" (Enum _) Int32 = Just Int32
 boperator "AS" (Enum _) Char = Just Char
 boperator "AS" (Enum _) Float = Just Float
-boperator "AS" _ _ = Nothing
+boperator "AS" x@(Enum _) y@(Enum _) = if x == y then Just x else Nothing
+boperator "AS" (Array _ _ t) (Array sz' b' t') =
+  if isJust (boperator "AS" t t')
+  then Just (Array sz' b' t')
+  else Nothing
+boperator "AS" (ReferenceTo t) t' = boperator "AS" t t'
+boperator "AS" t (ReferenceTo t') = boperator "AS" t t'
+boperator "AS" x y = if x == y then Just x else Nothing
+-- boperator "AS" _ _ = Nothing
 
 
 -- Suma!

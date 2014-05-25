@@ -14,11 +14,17 @@ import qualified ParserTypes as P
 import qualified Data.Map as M
 import qualified TypeChecking as T
 import Data.List (partition)
+import qualified Data.List as L
 import Control.Arrow (first)
 import Prelude hiding (lookup)
-import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe, fromJust)
+import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe, fromJust, isJust)
 import Control.Monad.RWS
 import Control.Lens hiding (mapping) -- have no fear.
+
+-- FIXME:
+-- hay que tener cuidado con typeSymbol y typename.
+-- TODO:
+-- hay que type check expresiones e instrucciones...
 
 
 data Extended = Struct | Enum | Union
@@ -111,12 +117,12 @@ typename (P.TypeUnion (P.Ident x _ _) _) = x
 
 
 -- | Check if a symbol exists otherwise stores an error.
-checkExists :: String -> Generator b ()
+checkExists :: String -> Generator b (Maybe Symbol)
 checkExists name = do
   st <- get
   if name `member` (st^.current:st^.path)
-  then return ()
-  else tell ["Symbol " ++ (name) ++ "has not been defined."]
+  then return (lookup name (st^.current:st^.path))
+  else tell ["Symbol " ++ (name) ++ "has not been defined."] >> return Nothing
 
 -- | Check if a symbol has already been defined.
 checkNotExists :: String -> Generator b () -> Generator b ()
@@ -127,20 +133,96 @@ checkNotExists k cb = do
                          ++ showPosition symbol]
     Nothing  -> cb
 
+checkFields a fs = maybe
+                   (tell ["No se consiguio ese field"] >> return Nothing)
+                   (\x -> return (Just x))
+                   (L.lookup a fs)
+
+
+checkParams received expected = do
+  result <- forM (zip received expected) $ \(x, y) -> do
+    case x of
+      Just t -> do
+        let canConvert = T.boperator "AS" t y
+        if isJust canConvert
+          then return True
+          else tell ["No se pudo convertir parametro de tipo " ++ (show t) ++ "a parametro de tipo " ++ (show y)] >> return False
+      Nothing -> tell ["Se esperaba parametro de tipo " ++ (show y)] >> return False
+  return $ and result
+
+
+
 -- | Check if an expression is OK.
-checkExpr :: P.Expr -> Generator b ()
-checkExpr (P.Field e (P.Ident name _ _ )) = checkExpr e -- >> checkExists name
-checkExpr (P.B _ l r) = checkExpr l >> checkExpr r
-checkExpr (P.U _ u) = checkExpr u
-checkExpr (P.Char _) = return ()
-checkExpr (P.Number _) = return ()
-checkExpr (P.Float _) = return ()
-checkExpr (P.Bool _) = return ()
-checkExpr (P.Str _) = return ()
-checkExpr (P.Var (P.Ident name _ _ )) = checkExists name
-checkExpr (P.FunctionCall (P.Ident name _ _) _) = checkExists name
-checkExpr (P.TypeCast e (P.Ident name _ _)) = checkExpr e >> checkExists name
-checkExpr (P.R l r step) = checkExpr l >> checkExpr r >> checkExpr step
+checkExpr :: P.Expr -> Generator b (Maybe T.Type)
+checkExpr (P.Field e (P.Ident name _ _ )) = do
+  leftType <- checkExpr e -- >> checkExists name
+  case leftType of
+    Just (T.Record fs) -> checkFields name fs
+    Just (T.Union fs) -> checkFields name fs
+    _ -> tell ["Solo se puede hacer . whatever a tipos extendidos"] >> return Nothing
+checkExpr (P.B op l r) = do
+  leftType <- checkExpr l
+  rightType <- checkExpr r
+  case (leftType, rightType) of
+    (Just lt, Just rt) ->
+      maybe (tell ["No se pueden operar"] >> return Nothing)
+      (\x -> return (Just x))
+      (T.boperator op lt rt)
+    (_, _) -> tell ["No se pueden operar."] >> return Nothing
+checkExpr (P.U op u) = do
+  leftType <- checkExpr u
+  case leftType of
+    Just lt ->
+      maybe
+      (tell ["No se puede operar unario"] >> return Nothing)
+      (\x -> return (Just x))
+      (T.uoperator op lt)
+    _ -> tell ["No se pueden operar unario."] >> return Nothing
+checkExpr (P.Char _) = return (Just T.Char)
+checkExpr (P.Number _) = return (Just T.Int32)
+checkExpr (P.Float _) = return (Just T.Float)
+checkExpr (P.Bool _) = return (Just T.Bool)
+checkExpr (P.Str s) = let n = (length s)
+                      in return (Just (T.Array (n+1) (0, n-1) T.Char))
+checkExpr (P.Var (P.Ident name _ _ )) = do
+  symbol <- checkExists name
+  case symbol of
+    Just (Variable i v s) -> return (Just s)
+    _ -> tell ["Se esperaba una variable " ++ name] >> return Nothing -- FIXME: mejor descripcion
+
+checkExpr (P.FunctionCall (P.Ident name _ _) params) = do
+  symbol <- checkExists name
+  case symbol of
+    Just (Function _ _ ftype) -> do
+      check <- mapM checkExpr (map snd params)
+      if length check /= length (T.domain ftype)
+      then (tell ["Dominio inesperado para funcion"] >> return Nothing)
+      else do ok <- checkParams check (map snd (T.domain ftype))
+              -- error $ (show check) ++ " " ++ (show (T.domain ftype) )
+              if ok then return (Just (T.range ftype))
+                    else return Nothing
+    Just _ -> tell ["Se esperaba funcion"] >> return Nothing
+    Nothing -> return Nothing
+
+checkExpr (P.TypeCast e (P.Ident name _ _)) = do
+  original <- checkExpr e
+  dest <- checkExists name
+  case (original, dest) of
+    (Just initialType, Just (TypeDeclaration _ _ finalType)) ->
+      maybe (tell ["No se puede realizar conversion"] >> return Nothing)
+      (\x -> return (Just x))
+      (T.boperator "AS" initialType finalType)
+    (_, _) -> tell ["No se puede realizar conversion"] >> return Nothing
+
+checkExpr (P.R l r _) = do
+  left <- checkExpr l
+  right <- checkExpr r
+  case (left, right) of
+    (Just T.Int32, Just T.Int32) -> do
+      let (P.Number x) = l
+          (P.Number y) = r
+      return (Just (T.Array (read y - read x + 1) (read x, read y) T.Int32))
+    _ -> tell ["Error de tipos, se esperaban dos enteros en el rango"] >> return Nothing
 
 
 -- | Check that `ptype` exists and check current scope for the existence
@@ -173,7 +255,8 @@ addVariable ident@(P.Ident name _ _) kind ptype =
   check_ name ptype $ \foundSymbol -> do
     case foundSymbol of
       TypeDeclaration _ _ stype -> do
-        let newSymbol = Variable ident kind stype
+        sst <- toActualType ptype
+        let newSymbol = Variable ident kind sst
         current.mapping.at name ?= newSymbol
       _ -> tell ["Tipo desconocido"] -- FIXME: better description
 
@@ -183,7 +266,8 @@ addTypedef ident@(P.Ident name _ _) ptype =
   check_ name ptype $ \foundSymbol -> do
     case foundSymbol of
       TypeDeclaration _ _ stype -> do
-        let newSymbol = TypeDeclaration ident empty (T.TypeDef stype)
+        sst <- toActualType ptype
+        let newSymbol = TypeDeclaration ident empty (T.TypeDef sst)
         current.mapping.at name ?= newSymbol
       _ -> tell ["Tipo desconocido"] -- FIXME: better description
 
@@ -192,7 +276,7 @@ addTypedef ident@(P.Ident name _ _) ptype =
 addShallowFunction :: P.Ident -> P.Type -> Generator b ()
 addShallowFunction ident@(P.Ident name _ _) ptype =
   check_ name ptype $ \_ -> do
-    let newSymbol = Function ident empty (T.Function [T.Void] T.Void)
+    let newSymbol = Function ident empty (T.Function [] T.Void)
     current.mapping.at name ?= newSymbol
 
 -- | Adds a new extended type (shallow pass) to the current table or
@@ -220,7 +304,7 @@ shallowPass = do
           addVariable ident kind tipo
           case init of
             Nothing -> return ()
-            Just expr -> checkExpr expr
+            Just expr -> checkExpr expr >> return ()
 
       P.TypeDef ident tipo ->
         addTypedef ident tipo
@@ -253,7 +337,7 @@ handleInstruction inst = case inst of
       addVariable ident P.VarKind tipo
       case init of
         Nothing -> return ()
-        Just expr -> checkExpr expr
+        Just expr -> checkExpr expr >> return ()
 
   -- Assignment
   P.Assign _ left expr ->
@@ -261,7 +345,7 @@ handleInstruction inst = case inst of
 
   -- Grab instruction
   P.Grab expr ->
-    checkExpr expr
+    checkExpr expr >> return ()
 
   -- Print instruction
   P.Print exprs ->
@@ -279,13 +363,13 @@ handleInstruction inst = case inst of
 
   -- For loop
   P.For ptype ident@(P.Ident name _ _) expr insts -> do
-    typeSymbol ptype
+    typeSymbol ptype -- FIXME: should use getActualType.
     let newTable = M.singleton name (Variable ident P.VarKind T.Int32) -- FIXME: change to iterating type
     checkExpr expr
     trackAndBuild (Table newTable []) insts
 
   -- Return instruction
-  P.Return (Just expr) -> checkExpr expr
+  P.Return (Just expr) -> checkExpr expr >> return ()
 
   -- A function call
   P.VoidCall (P.Ident name _ _) inits -> do
@@ -302,13 +386,14 @@ handleFunction (P.Function ident parameters ptype insts) = do
   forM_ parameters $ \(pident, init, ptype) -> do
     -- Check and add this symbol.
     check (P.identName pident) $ do
-      let newSymbol = Variable pident P.VarKind T.Int32 -- FIXME: change to correct type
+      sst <- toActualType ptype
+      let newSymbol = Variable pident P.VarKind sst -- FIXME: change to correct type
       current.mapping.at (P.identName pident) ?= newSymbol
 
     -- Check possible initializations.
     case init of
       Nothing -> return ()
-      Just expr -> checkExpr expr
+      Just expr -> checkExpr expr >> return ()
 
   -- Perform checks on the return type.
   typeSymbol ptype
@@ -385,8 +470,8 @@ addGlobals newTable = do
   mapM_ addGlobals (newTable^.sons)
 
 f' (ptype, defs) = do
-  sstype <- typeSymbol ptype
-  return [(P.identName ident, stype (fromJust sstype)) | (ident, _) <- defs]
+  sstype <- toActualType ptype
+  return [(P.identName ident, sstype) | (ident, _) <- defs]
 
 computeFields ::  P.Type -> Generator b T.Type
 computeFields (P.TypeStruct ident defs) = do
@@ -437,13 +522,36 @@ handleGlobal global@(P.DefCombine tipo) = do
 
 handleGlobal _ = return ()
 
+interpretDims :: [Maybe P.Expr] -> [(Int, (Int, Int))]
+interpretDims = map f
+  where f (Just (P.Number x)) = (read x, (0, (read x)-1))
+        f (Just (P.R (P.Number x) (P.Number y) _)) = (read y - read x + 1, (read x, read y))
+
+toActualType :: P.Type -> Generator b T.Type
+toActualType (P.ArrayOf ptype dims) = do
+  sst <- toActualType ptype
+  let nt = foldr f sst (interpretDims dims)
+      f (size, (x, y)) acc = T.Array size (x, y) acc
+  return nt
+
+toActualType (P.ReferenceTo ptype) = do
+  sst <- toActualType ptype
+  return (T.ReferenceTo sst)
+
+toActualType p = do
+  sst <- typeSymbol p
+  return (maybe T.Void stype sst)
+
+
 fixSignatures  = mapM fix where
   fix func@(P.Function ident@(P.Ident name _ _) vars ptype _) = do
-    returnType <- typeSymbol ptype
-    domain <- mapM (\(_, _, x) -> typeSymbol x) vars
+    returnType <- toActualType ptype
+    domain <- mapM (\(pident, _, x) -> do
+                       y <- toActualType x
+                       return (P.identName pident, y)) vars
     current.mapping.at name ?= (Function ident empty (T.Function
-                                                     (map (maybe T.Void stype) domain)
-                                                     (maybe T.Void stype returnType)))
+                                                     domain
+                                                     returnType))
     return func
 
 isTypeGlobal (P.DefCombine _)  = True
