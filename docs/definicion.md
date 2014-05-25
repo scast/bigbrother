@@ -216,7 +216,7 @@ x as int32
 
 La conversión de flotantes a enteros trunca. La conversión entre
 carácteres y tipos numéricos es equivalente a utilizar los operadores
-`#` y `%`.
+`#` y `@`.
 
 Cuando se trata de operar sobre tipos numéricos distintos puede
 ocurrir una promoción al tipo más general.
@@ -276,21 +276,29 @@ Dentro del lenguaje los rangos se pueden definir como sigue:
 Esto define un rango desde inicial (incluyéndolo) hasta final
 (excluyéndolo) aumentando con un paso de 1.
 
-Para variar el paso, se puede utilizar la notación extendida:
-
-`<inicial>..<final> by <paso>`
-
 Los rangos no representan un tipo concreto dentro del lenguaje. Son un
-atajo para operaciones comunes, no se pueden asignar, no se pueden
-pasar como parámetro a ninguna función, y no se pueden retornar como
-resultado de ninguna función.
+atajo para operaciones comunes.  En caso de ser asignados, pasados como
+parametros, retornados de alguna funcion, o en general usados como un 
+tipo concreto serán reinterpretados como un arreglo del tamaño del rango 
+donde cada posición tiene cada elemento del rango. Por lo tanto, las cotas
+de los rangos no pueden ser declaradas utilizando variables. De igual forma, 
+los rangos deben ser declarados utilizando literales del tipo entero. 
+Esto es, el siguiente rango es valido:
+
+`1..32`
+
+pero los siguientes rangos no:
+
+`x..32`
+
+`1.3..2.0`
+
+`0..32+1`
 
 Ejemplos
 ---------
 
 `0..10 // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]`
-
-`0..10 by 2 // [0, 2, 4, 6, 8]`
 
 
 Arreglos
@@ -310,7 +318,7 @@ Adicionalmente, se puede utilizar la siguiente notación:
 
 que es azúcar sintáctico para:
 
-`var <identificador> : <tipo>[0..<entero>];`
+`var <identificador> : <tipo>[0..<entero>-1];`
 
 En el caso de arreglos multidimensionales la sintaxis es similar:
 
@@ -319,6 +327,21 @@ En el caso de arreglos multidimensionales la sintaxis es similar:
 Con la declaración simplificada
 
 `var <identificador> : <tipo>[<entero_1>][<entero_n>]...[<entero_n>];`
+
+La declaracion utilizando la sintaxis de rango necesariamente
+tiene que usar  DOS enteros literales (es decir, no se pueden usar
+ni variables ni constantes ni alguna operacion sobre estas). 
+En el caso de usar la version simplificada se debe usar UN entero literal.
+
+Por ejemplo, la declaracion:
+
+`int[32]` 
+
+es correcta mientras que
+
+`int[32+32]` 
+
+no lo es. 
 
 Como atajo para operaciones comunes, al momento de inicialización se
 puede utilizar la siguiente notación para llenarlo de un valor
@@ -332,7 +355,11 @@ Se cuenta con los siguientes operadores para trabajar con arreglos:
 - `@arreglo` retorna la posición actual de iteración. Más sobre esto
   en la sección de iteración determinada.
 - Para acceder un indice se utiliza el operador `[]` como en C.
-- `arreglo[RANGO]` devuelve un rango con los elementos entre los elementos de RANGO.
+
+Al momento de declaracion de funciones que tomen parametros de tipo arreglo, 
+no se permite obviar ninguna dimension. Para declarar las dimensiones, las mismas
+restricciones descritas al momento de declaracion de arreglo aplican: solo 
+enteros literales. Adicionalmente, solo se permite utilizar la version atajo.
 
 Ejemplos
 ---------
@@ -357,11 +384,6 @@ var arr5 = -1 : int[10];
 print! arr1[0]; // imprime -1
 arr1[0] = 1; // asigna 1 en la primera posicion del arreglo.
 
-for int i: arr1[2..7] {
-    for int j: arr2[5..8] {
-        // hacer algo con i y j.
-    }
-}
 ~~~
 
 Tipos de datos compuestos
@@ -585,10 +607,9 @@ el lenguaje permite referenciar cualquier cantidad de funciones que
 posiblemente no están definidas aún, se permite la recursión entre
 funciones mutuamente recursivas.
 
-Es posible declarar multiples veces la misma función o procedimiento
-siempre y cuando sus parámetros sean diferentes entre cualquier par de
-funciones o procedimiento con el mismo nombre.
-
+Al necesitar agregar un parametro de tipo arreglo, todas sus dimensiones
+deben estar bien especificadas como literales interpretables por
+el lenguaje de tipo ENTERO. 
 
 Selección
 =========
