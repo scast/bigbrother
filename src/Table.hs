@@ -13,6 +13,7 @@ module Table ( buildM
 import qualified ParserTypes as P
 import qualified Data.Map as M
 import qualified TypeChecking as T
+import Data.List (partition)
 import Control.Arrow (first)
 import Prelude hiding (lookup)
 import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe, fromJust)
@@ -308,15 +309,15 @@ handleFunction (P.Function ident parameters ptype insts) = do
       Nothing -> return ()
       Just expr -> checkExpr expr
 
-    -- Perform checks on the return type.
-    typeSymbol ptype
-    case ptype of
-      P.ArrayOf tipo dims -> do let ndims = catMaybes dims
-                                mapM_ checkExpr ndims
-      _ -> return ()
+  -- Perform checks on the return type.
+  typeSymbol ptype
+  case ptype of
+    P.ArrayOf tipo dims -> do let ndims = catMaybes dims
+                              mapM_ checkExpr ndims
+    _ -> return ()
 
-    -- Handle each instruction of this function.
-    forM_ insts handleInstruction
+  -- Handle each instruction of this function.
+  forM_ insts handleInstruction
 
 -- | Handle a complex (extended) type declaration.
 handleComplexType :: P.Type -> Generator b () -> Generator b ()
@@ -413,7 +414,9 @@ handleGlobal global@(P.Function ident@(P.Ident name _ _) vars ptype insts) = do
       (s, w) = buildTable (handleFunction global) [global] initial
   tell w
   current.sons <>= [s^.current]
-  current.mapping.at name ?= (Function ident (s^.current) (T.Function [T.Void] T.Void)) -- FIXME: correct types
+  leMapping <- use (current.mapping)
+  let funcActual = fromJust (M.lookup name leMapping)
+  current.mapping.at name ?= (funcActual { table = s^.current })
 
 -- | In the special case of type declarations, it must link typenames
 -- and enum variables to the global scope.
@@ -433,6 +436,20 @@ handleGlobal global@(P.DefCombine tipo) = do
 
 handleGlobal _ = return ()
 
+fixSignatures  = mapM fix where
+  fix func@(P.Function ident@(P.Ident name _ _) vars ptype _) = do
+    returnType <- typeSymbol ptype
+    domain <- mapM (\(_, _, x) -> typeSymbol x) vars
+    current.mapping.at name ?= (Function ident empty (T.Function
+                                                     (map (maybe T.Void stype) domain)
+                                                     (maybe T.Void stype returnType)))
+    return func
+
+isTypeGlobal (P.DefCombine _)  = True
+isTypeGlobal _ = False
+
+isFunctionGlobal (P.Function _ _ _ _)  = True
+isFunctionGlobal _ = False
 
 -- | Builds our symbol table recursively. Initially, performs a
 -- shallow pass to gather global symbols which allows calling
@@ -448,7 +465,14 @@ buildM = do
   shallowPass
 
   -- Perform a full (recursive) pass now.
-  forM_ tree handleGlobal
+  -- First deal with types
+  let (typeGlobal, restGlobal) = partition isTypeGlobal tree
+  forM_ typeGlobal handleGlobal
+
+  -- Before dealing with functions, we must fix their signatures since
+  -- we stored a placeholder.
+  fixedRest <- fixSignatures (filter isFunctionGlobal restGlobal)
+  forM_ fixedRest handleGlobal
 
   -- -- Make sure the language table has the current table (the global
   -- -- table) as a son
