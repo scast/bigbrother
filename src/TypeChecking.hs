@@ -69,6 +69,7 @@ boperator "AS" Char Bool = Just Int32
 boperator "AS" Char Float = Just Int32
 boperator "AS" Char Char = Just Char
 boperator "AS" (Enum _) Int32 = Just Int32
+boperator "AS" Int32 x@(Enum _) = Just x
 boperator "AS" (Enum _) Char = Just Char
 boperator "AS" (Enum _) Float = Just Float
 boperator "AS" x@(Enum _) y@(Enum _) = if x == y then Just x else Nothing

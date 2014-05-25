@@ -183,7 +183,7 @@ checkExpr (P.Number _) = return (Just T.Int32)
 checkExpr (P.Float _) = return (Just T.Float)
 checkExpr (P.Bool _) = return (Just T.Bool)
 checkExpr (P.Str s) = let n = (length s)
-                      in return (Just (T.Array (n+1) (0, n-1) T.Char))
+                      in return (Just (T.Array (n+1) (0, n) T.Char))
 checkExpr (P.Var (P.Ident name _ _ )) = do
   symbol <- checkExists name
   case symbol of
@@ -207,6 +207,7 @@ checkExpr (P.FunctionCall (P.Ident name _ _) params) = do
 checkExpr (P.TypeCast e (P.Ident name _ _)) = do
   original <- checkExpr e
   dest <- checkExists name
+  -- error $ (show original) ++ " " ++ (show dest)
   case (original, dest) of
     (Just initialType, Just (TypeDeclaration _ _ finalType)) ->
       maybe (tell ["No se puede realizar conversion"] >> return Nothing)
@@ -316,32 +317,40 @@ shallowPass = do
         addShallowType tipo
 
 -- | Build a new table in the new scope of the instruction.
-trackAndBuild :: Table -> [P.Instruction] -> Generator b ()
-trackAndBuild table tree = do
+trackAndBuild :: T.Type -> Table -> [P.Instruction] -> Generator b ()
+trackAndBuild returnType table tree = do
   st <- get
   -- Create a new table
   let action = do
         insts <- ask
-        forM_ insts handleInstruction
+        forM_ insts (handleInstruction returnType)
       (final, acc) =
         buildTable action tree (GeneratorState table (st^.current:st^.path))
   tell acc
   current.sons <>= [final^.current]
 
 -- | Handle each kind of instruction and perform static checks.
-handleInstruction :: P.Instruction -> Generator b ()
-handleInstruction inst = case inst of
+handleInstruction :: T.Type -> P.Instruction -> Generator b ()
+handleInstruction returnType inst = case inst of
   -- Local variable declaration (and initialization)
   P.LocalVar tipo inits ->
     forM_ inits $ \(ident, init) -> do
       addVariable ident P.VarKind tipo
       case init of
         Nothing -> return ()
-        Just expr -> checkExpr expr >> return ()
-
+        Just expr -> do
+          exprType <- checkExpr expr
+          sst <- toActualType tipo
+          ok <- checkParams [exprType] [sst]
+          return ()
   -- Assignment
-  P.Assign _ left expr ->
-    void (checkExpr left >> checkExpr expr)
+  P.Assign _ left expr -> do
+    leftType <- checkExpr left
+    rightExpr <- checkExpr expr
+    if isJust leftType then
+      checkParams [rightExpr] [fromJust leftType] >> return ()
+    else return ()
+    -- void (checkExpr left >> checkExpr expr)
 
   -- Grab instruction
   P.Grab expr ->
@@ -354,27 +363,42 @@ handleInstruction inst = case inst of
   -- Conditional
   P.If blocks -> forM_ blocks $ \block ->
     case block of
-      (Just e, insts) -> checkExpr e >> trackAndBuild empty insts
-      (Nothing, insts) -> trackAndBuild empty insts
+      (Just e, insts) -> do t <- checkExpr e
+                            case t of Just T.Bool -> trackAndBuild returnType empty insts
+                                      _ -> tell ["Se esperaba una expresion booleana, IF"] >> return ()
+      (Nothing, insts) -> trackAndBuild returnType empty insts
 
   -- While loop
-  P.While expr insts ->
-    checkExpr expr >> trackAndBuild empty insts
+  P.While expr insts -> do
+    t <- checkExpr expr
+    case t of Just T.Bool -> trackAndBuild returnType empty insts
+              _ -> tell ["Se esperaba una expresion booleana, WHILE"] >> return ()
 
   -- For loop
   P.For ptype ident@(P.Ident name _ _) expr insts -> do
-    typeSymbol ptype -- FIXME: should use getActualType.
-    let newTable = M.singleton name (Variable ident P.VarKind T.Int32) -- FIXME: change to iterating type
-    checkExpr expr
-    trackAndBuild (Table newTable []) insts
+    sym <- typeSymbol ptype -- FIXME: should use getActualType.
+    if isJust sym
+    then do
+            t <- checkExpr expr
+            case t of Just (T.Array _ _ t) -> do let newTable = M.singleton name (Variable ident P.VarKind t) -- FIXME: change to iterating type
+                                                 trackAndBuild returnType (Table newTable []) insts
+                      Just (T.ReferenceTo (T.Array _ _ t)) -> do let newTable = M.singleton name (Variable ident P.VarKind t) -- FIXME: change to iterating type
+                                                                 trackAndBuild returnType (Table newTable []) insts
+                      _ -> tell ["Se esperaba un tipo iterable, for"] >> return ()
+    else return ()
 
   -- Return instruction
-  P.Return (Just expr) -> checkExpr expr >> return ()
+  P.Return (Just expr) -> do
+    t <- checkExpr expr
+    ok <- checkParams [t] [returnType]
+    return ()
 
   -- A function call
-  P.VoidCall (P.Ident name _ _) inits -> do
-    checkExists name
-    forM_ inits $ \(_, expr) -> checkExpr expr
+  P.VoidCall ident@(P.Ident name _ _) inits -> do
+    checkExpr (P.FunctionCall ident inits)
+    return ()
+    -- checkExists name
+    -- forM_ inits $ \(_, expr) -> checkExpr expr
 
   -- Everything else doesn't matter.
   _ -> return ()
@@ -402,8 +426,9 @@ handleFunction (P.Function ident parameters ptype insts) = do
                               mapM_ checkExpr ndims
     _ -> return ()
 
+  sst <- toActualType ptype
   -- Handle each instruction of this function.
-  forM_ insts handleInstruction
+  forM_ insts (handleInstruction sst)
 
 -- | Handle a complex (extended) type declaration.
 handleComplexType :: P.Type -> Generator b () -> Generator b ()
