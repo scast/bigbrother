@@ -122,14 +122,14 @@ checkExists name = do
   st <- get
   if name `member` (st^.current:st^.path)
   then return (lookup name (st^.current:st^.path))
-  else tell ["Symbol " ++ (name) ++ "has not been defined."] >> return Nothing
+  else tell ["Symbol " ++ (name) ++ " has not been defined."] >> return Nothing
 
 -- | Check if a symbol has already been defined.
 checkNotExists :: String -> Generator b () -> Generator b ()
 checkNotExists k cb = do
   st <- get
   case lookup k (st^.current:st^.path) of
-    Just symbol -> tell ["Symbol " ++ k ++ "has already been defined at "
+    Just symbol -> tell ["Symbol " ++ k ++ " has already been defined at "
                          ++ showPosition symbol]
     Nothing  -> cb
 
@@ -146,7 +146,7 @@ checkParams received expected = do
         let canConvert = T.boperator "AS" t y
         if isJust canConvert
           then return True
-          else tell ["No se pudo convertir parametro de tipo " ++ (show t) ++ "a parametro de tipo " ++ (show y)] >> return False
+          else tell ["No se pudo convertir parametro de tipo " ++ (show t) ++ " a parametro de tipo " ++ (show y)] >> return False
       Nothing -> tell ["Se esperaba parametro de tipo " ++ (show y)] >> return False
   return $ and result
 
