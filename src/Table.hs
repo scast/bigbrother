@@ -13,8 +13,9 @@ module Table ( buildM
 import qualified ParserTypes as P
 import qualified Data.Map as M
 import qualified TypeChecking as T
+import Control.Arrow (first)
 import Prelude hiding (lookup)
-import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe)
+import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe, fromJust)
 import Control.Monad.RWS
 import Control.Lens hiding (mapping) -- have no fear.
 
@@ -27,11 +28,11 @@ data Symbol = TypeDeclaration { ident :: P.Ident
                               , stype :: T.Type }
             | Variable { ident :: P.Ident
                        , vkind :: P.VKind
-                       -- , stype :: T.Type
+                       , stype :: T.Type
                        }
             | Function { ident :: P.Ident
                        , table :: Table
-                       -- , stype :: T.Type
+                       , stype :: T.Type
                        }
             deriving (Show, Eq, Ord)
 
@@ -99,12 +100,13 @@ findType k = do
 -- error.
 typeSymbol :: P.Type -> Generator b (Maybe Symbol)
 typeSymbol = findType . typename
-  where typename (P.Type (P.Ident x _ _)) = x
-        typename (P.ArrayOf x _) = typename x
-        typename (P.ReferenceTo x ) = typename x
-        typename (P.TypeStruct (P.Ident x _ _) _) = x
-        typename (P.TypeEnum (P.Ident x _ _) _) = x
-        typename (P.TypeUnion (P.Ident x _ _) _) = x
+
+typename (P.Type (P.Ident x _ _)) = x
+typename (P.ArrayOf x _) = typename x
+typename (P.ReferenceTo x ) = typename x
+typename (P.TypeStruct (P.Ident x _ _) _) = x
+typename (P.TypeEnum (P.Ident x _ _) _) = x
+typename (P.TypeUnion (P.Ident x _ _) _) = x
 
 
 -- | Check if a symbol exists otherwise stores an error.
@@ -166,9 +168,12 @@ check name callback = do
 -- | Add a new variable to the current table or store an error on failure.
 addVariable :: P.Ident -> P.VKind -> P.Type -> Generator b ()
 addVariable ident@(P.Ident name _ _) kind ptype =
-  check_ name ptype $ \_ -> do
-    let newSymbol = Variable ident kind
-    current.mapping.at name ?= newSymbol
+  check_ name ptype $ \foundSymbol -> do
+    case foundSymbol of
+      TypeDeclaration _ _ stype -> do
+        let newSymbol = Variable ident kind stype
+        current.mapping.at name ?= newSymbol
+      _ -> tell ["Tipo desconocido"] -- FIXME: better description
 
 -- | Adds a new typedef to the current table or stores an error on failure.
 addTypedef :: P.Ident -> P.Type -> Generator b ()
@@ -178,25 +183,26 @@ addTypedef ident@(P.Ident name _ _) ptype =
       TypeDeclaration _ _ stype -> do
         let newSymbol = TypeDeclaration ident empty (T.TypeDef stype)
         current.mapping.at name ?= newSymbol
+      _ -> tell ["Tipo desconocido"] -- FIXME: better description
 
 -- | Adds a new extended function (shallow pass) to the current table or
 -- stores an error on failure.
 addShallowFunction :: P.Ident -> P.Type -> Generator b ()
 addShallowFunction ident@(P.Ident name _ _) ptype =
   check_ name ptype $ \_ -> do
-    let newSymbol = Function ident empty
+    let newSymbol = Function ident empty (T.Function [T.Void] T.Void)
     current.mapping.at name ?= newSymbol
 
 -- | Adds a new extended type (shallow pass) to the current table or
 -- stores an error on failure.
 addShallowType :: P.Type -> Generator b ()
 addShallowType ptype = do
-  let (ident, ext) = case ptype of
-        P.TypeStruct id _ -> (id, Struct)
-        P.TypeEnum id _ -> (id, Enum)
-        P.TypeUnion id _ -> (id, Union)
+  let (ident, ext, nt) = case ptype of
+        P.TypeStruct id _ -> (id, Struct, T.Record [])
+        P.TypeEnum id _ -> (id, Enum, T.Enum [])
+        P.TypeUnion id _ -> (id, Union, T.Union [])
   checkNotExists (P.identName ident) $ do
-    let newSymbol = TypeDeclaration ident empty T.Char -- FIXME: fix.
+    let newSymbol = TypeDeclaration ident empty nt
         name = P.identName ident
     current.mapping.at name ?= newSymbol
 
@@ -272,7 +278,7 @@ handleInstruction inst = case inst of
   -- For loop
   P.For ptype ident@(P.Ident name _ _) expr insts -> do
     typeSymbol ptype
-    let newTable = M.singleton name (Variable ident P.VarKind)
+    let newTable = M.singleton name (Variable ident P.VarKind T.Int32) -- FIXME: change to iterating type
     checkExpr expr
     trackAndBuild (Table newTable []) insts
 
@@ -294,7 +300,7 @@ handleFunction (P.Function ident parameters ptype insts) = do
   forM_ parameters $ \(pident, init, ptype) -> do
     -- Check and add this symbol.
     check (P.identName pident) $ do
-      let newSymbol = Variable pident P.VarKind
+      let newSymbol = Variable pident P.VarKind T.Int32 -- FIXME: change to correct type
       current.mapping.at (P.identName pident) ?= newSymbol
 
     -- Check possible initializations.
@@ -332,7 +338,11 @@ handleComplexType tipo callback = do
       current.sons <>= [s^.current]
       let tident = P.typeIdent tipo
           name = P.identName tident
-      current.mapping.at name ?= (TypeDeclaration tident (s^.current) T.Char) -- FIXME: FIXME
+      oldPath <- use path
+      path <>= [s^.current]
+      sst <- computeFields tipo
+      path .= oldPath
+      current.mapping.at name ?= (TypeDeclaration tident (s^.current) sst) -- FIXME: FIXME
       callback
 
 -- | Handle the list of definitions in a type (struct or union)
@@ -366,11 +376,32 @@ addGlobals :: Table -> Generator b ()
 addGlobals newTable = do
   st <- get
   let shallow = M.foldlWithKey f M.empty (newTable^.mapping)
-      f accum key x@(Variable _ P.EnumVar) = M.insert key x accum
+      f accum key x@(Variable _ P.EnumVar _) = M.insert key x accum
       f accum key x@(TypeDeclaration _ _ _) = M.insert key x accum -- FIXME
       f accum _ _ = accum
   current.mapping .= M.union (st^.current.mapping) shallow
   mapM_ addGlobals (newTable^.sons)
+
+f' (ptype, defs) = do
+  sstype <- typeSymbol ptype
+  return [(P.identName ident, stype (fromJust sstype)) | (ident, _) <- defs]
+
+computeFields ::  P.Type -> Generator b T.Type
+computeFields (P.TypeStruct ident defs) = do
+  types <- mapM f' defs
+  return (T.Record (concat types))
+
+computeFields (P.TypeUnion ident defs) = do
+  types <- mapM f' defs
+  return (T.Union (concat types))
+
+computeFields (P.TypeEnum _ inits) = do
+  let fields = map (P.identName . fst) inits
+  return (T.Enum fields)
+
+-- Record (P.identName ident) fields
+  -- where fields =
+
 
 -- | Handle a global instruction. Only functions and extended types
 -- need to be considered since typedefs and variable declarations were
@@ -382,7 +413,7 @@ handleGlobal global@(P.Function ident@(P.Ident name _ _) vars ptype insts) = do
       (s, w) = buildTable (handleFunction global) [global] initial
   tell w
   current.sons <>= [s^.current]
-  current.mapping.at name ?= (Function ident (s^.current))
+  current.mapping.at name ?= (Function ident (s^.current) (T.Function [T.Void] T.Void)) -- FIXME: correct types
 
 -- | In the special case of type declarations, it must link typenames
 -- and enum variables to the global scope.
@@ -393,7 +424,11 @@ handleGlobal global@(P.DefCombine tipo) = do
   tell w
   current.sons <>= [s^.current]
   let name = (P.identName (P.typeIdent tipo))
-  current.mapping.at name ?= (TypeDeclaration (P.typeIdent tipo) (s^.current) T.Char) -- FIXME: here
+  oldPath <- use path
+  path <>= [s^.current]
+  sst <- computeFields tipo
+  path .= oldPath
+  current.mapping.at name ?= (TypeDeclaration (P.typeIdent tipo) (s^.current) sst) -- TODO: stress test
   addGlobals (s^.current)
 
 handleGlobal _ = return ()
@@ -415,9 +450,10 @@ buildM = do
   -- Perform a full (recursive) pass now.
   forM_ tree handleGlobal
 
-  -- Make sure the language table has the current table (the global
-  -- table) as a son
+  -- -- Make sure the language table has the current table (the global
+  -- -- table) as a son
+  track <- use path
   path .= []
-  current .= languageTable
   globalTable <- use current
+  current .= head track
   current.sons <>= [globalTable]

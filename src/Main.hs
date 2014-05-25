@@ -30,25 +30,27 @@ imprimirHijos table ubic =
 imprimirSimbolo (T.TypeDeclaration (P.Ident nombre l c) table tp) ubic =
   text "Type => "
   <> text (nombre ++ " ")
-  <> text ("type definition: " ++ (show tp))
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
+  <> text ("type definition: " ++ (show tp))
 
-imprimirSimbolo (T.Variable (P.Ident nombre l c) kind) _ =
+imprimirSimbolo (T.Variable (P.Ident nombre l c) kind tp) _ =
   text "Variable => "
   <> text (nombre ++ " ")
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
   <> text (" " ++ show kind)
+  <> text ("type -> " ++ (show tp) )
 
-imprimirSimbolo (T.Function (P.Ident nombre l c) table) ubic =
+imprimirSimbolo (T.Function (P.Ident nombre l c) table tp) ubic =
   text "Function => "
   <> text (nombre ++ " ")
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
+  <> text ("type definition: " ++ (show tp))
 
 -- imprimirHijos table =  text "HIJOS => " $$ foldl f empty (sons table)
 --   where f a b = a $$ nest 5 (prettySymbolTable b)
