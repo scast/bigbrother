@@ -1,5 +1,5 @@
 var x = 50:int;
-cont pi = 3.14:double;
+const pi = 3.14:float;
 
 fn main() {
 	print! x*pi;

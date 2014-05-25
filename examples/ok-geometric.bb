@@ -8,9 +8,9 @@ fn abs(n:int):int {
 
 struct rect {
     p1, p2 : struct point {
-        x, y : double,
+        x, y : float,
         deep: struct raro {
-            x, y: double
+            x, y: float
         }
     },
     fill_color : enum color {
@@ -22,7 +22,7 @@ fn AreaRect(r:rect):int {
 	return abs(r.p2.x - r.p1.x) * abs(r.p2.y - r.p1.y);
 }
 
-fn main(args: string[]) {
+fn main(args: char[][]) {
 	var p1, p2 : point;
 	var r : rect;
 	
