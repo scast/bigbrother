@@ -134,6 +134,7 @@ checkExpr (P.B _ l r) = checkExpr l >> checkExpr r
 checkExpr (P.U _ u) = checkExpr u
 checkExpr (P.Char _) = return ()
 checkExpr (P.Number _) = return ()
+checkExpr (P.Float _) = return ()
 checkExpr (P.Bool _) = return ()
 checkExpr (P.Str _) = return ()
 checkExpr (P.Var (P.Ident name _ _ )) = checkExists name

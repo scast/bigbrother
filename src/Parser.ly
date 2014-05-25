@@ -29,6 +29,7 @@
 
 > %token
 >    NUMBER   { L _ LNum $$ }
+>    FLOAT   { L _ LFloat $$ }
 >    CHAR     { L _ LChar $$ }
 >    BOOL     { L _ LBool $$ }
 >    IDENT    { L _ LId _ }
@@ -228,6 +229,7 @@
 > EXPR
 >   : CHAR                     {% returnM  ( Char $1 ) }
 >   | NUMBER                   {% returnM  ( Number $1 ) }
+>   | FLOAT                   {% returnM  ( Float $1 ) }
 >   | BOOL                     {% returnM  ( Bool $1 ) }
 >   | STRING                   {% returnM  ( Str $1 ) }
 >   | IDENT                    {% returnM  ( Var (saveIdent $1) ) }

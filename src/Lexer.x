@@ -14,11 +14,7 @@ tokens :-
   "//" .* ;
   $white+ ;
   $digits+ { mkL LNum  } -- common integer
-  [0-9][0-9_]* { mkL LNum } -- readability
-  [0-9][0-9\.]* "e" [0-9]+ { mkL LNum } -- scientific notation
-  "0b" [0-7]+ { mkL LNum } -- octal notation
-  "0x" [0-9abcdef]+ { mkL LNum } -- hex notation
-  $digits+ "." $digits+ { mkL LNum } -- floating point
+  $digits+ "." $digits+ { mkL LFloat } -- floating point
   "'" . "'" { mkL LChar }
   "true" { mkL LBool }
   "false" { mkL LBool  }
@@ -106,7 +102,7 @@ data Lexeme = L { pos :: AlexPosn,
                   str :: String }
             deriving (Show)
 
-data LexemeClass = LNum | LChar | LBool
+data LexemeClass = LNum | LFloat | LChar | LBool
            | LId  | LString  | LFn | LColon | LSemicolon
            | LOpenBracket | LCloseBracket | LOpenCurly | LCloseCurly
            | LOpenParenthesis | LCloseParenthesis

@@ -41,6 +41,7 @@ data Expr = B String Expr Expr
           | Field Expr Ident
           | Char String
           | Number String
+          | Float String
           | Bool String
           | Str String
           | Var Ident
