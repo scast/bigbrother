@@ -269,8 +269,8 @@
 > LISTAONADA
 >   :                        {% returnM  ( [] ) }
 >   | POSITIONAL             {% returnM  ( $1 ) }
->   | BYNAMES                {% returnM  ( $1 ) }
->   | POSITIONAL ',' BYNAMES {% returnM  ( $1 ++ $3 ) }
+-- >   | BYNAMES                {% returnM  ( $1 ) }
+-- >   | POSITIONAL ',' BYNAMES {% returnM  ( $1 ++ $3 ) }
 
 > POSITIONAL
 >   : POSITIONAL ',' EXPR {% returnM  ( $1 ++ [(Nothing, $3)]) }
