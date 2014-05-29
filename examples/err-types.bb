@@ -23,7 +23,6 @@ fn main() {
 	var p:punto[2];
 	var r:rect;
 
-	a = 1;
 	p[1].x = b[1]*a*c;
 	r.y = 1.0;
 	c = area(r);
