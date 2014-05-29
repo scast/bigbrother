@@ -364,13 +364,15 @@ handleInstruction returnType inst = case inst of
           exprType <- checkExpr expr
           sst <- toActualType tipo
           ok <- checkParams (showIdentPosition ident) [exprType] [sst]
-          return ()
+          if ok then return () else tell ["Expected " ++ (show sst) ++ " at " ++ (show (P.getPos expr))]
+
   -- Assignment
   P.Assign "=" left expr _ -> do
     leftType <- checkExpr left
     rightExpr <- checkExpr expr
-    if isJust leftType then
-      checkParams (show (P.getPos expr)) [rightExpr] [fromJust leftType] >> return ()
+    if isJust leftType then do
+      ok <- checkParams (show (P.getPos expr)) [rightExpr] [fromJust leftType]
+      if ok then return () else tell ["Expected " ++ (show (fromJust leftType)) ++ " at " ++ (show (P.getPos left))]
     else return ()
   P.Assign op left expr _ -> do
     handleInstruction returnType (P.Assign "=" left (P.B op left expr (-1, -1)) (-1, -1)) -- FIXME
