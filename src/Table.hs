@@ -166,33 +166,32 @@ checkParams received expected = do
   return $ and result
 
 
-
 -- | Check if an expression is OK.
 checkExpr :: P.Expr -> Generator b (Maybe T.Type)
-checkExpr (P.Field e (P.Ident name _ _ )) = do
+checkExpr (P.Field e ident@(P.Ident name _ _ )) = do
   leftType <- checkExpr e -- >> checkExists name
   case leftType of
     Just (T.Record fs) -> checkFields name fs
     Just (T.Union fs) -> checkFields name fs
-    _ -> tell ["Solo se puede hacer . whatever a tipos extendidos"] >> return Nothing
-checkExpr (P.B op l r _ ) = do
+    _ -> tell ["Trying to find a field on a non extended type " ++ showIdentPosition ident] >> return Nothing
+checkExpr (P.B op l r pos) = do
   leftType <- checkExpr l
   rightType <- checkExpr r
   case (leftType, rightType) of
     (Just lt, Just rt) ->
-      maybe (tell ["No se pueden operar"] >> return Nothing)
+      maybe (tell ["Can't perform " ++ op ++ " with types " ++ (show lt) ++ " and " ++ (show rt) ++ " at " ++ show pos] >> return Nothing)
       (\x -> return (Just x))
       (T.boperator op lt rt)
-    (_, _) -> tell ["No se pueden operar."] >> return Nothing
-checkExpr (P.U op u _ ) = do
+    (_, _) -> tell ["Can't perform " ++ op ++ " at " ++ (show pos)] >> return Nothing
+checkExpr (P.U op u pos ) = do
   leftType <- checkExpr u
   case leftType of
     Just lt ->
       maybe
-      (tell ["No se puede operar unario"] >> return Nothing)
+      (tell ["Can't perform unary " ++ op ++ " with types " ++ (show lt) ++ " at " ++ show pos] >> return Nothing)
       (\x -> return (Just x))
       (T.uoperator op lt)
-    _ -> tell ["No se pueden operar unario."] >> return Nothing
+    _ -> tell ["Can't perform unary " ++ op ++ " at " ++ show pos] >> return Nothing
 checkExpr (P.Char _) = return (Just T.Char)
 checkExpr (P.Number _) = return (Just T.Int32)
 checkExpr (P.Float _) = return (Just T.Float)
@@ -209,7 +208,7 @@ checkExpr (P.Var ident@(P.Ident name _ _ )) = do
   symbol <- checkExists ident
   case symbol of
     Just (Variable i v s o) -> return (Just s)
-    _ -> tell ["Se esperaba una variable " ++ name] >> return Nothing -- FIXME: mejor descripcion
+    _ -> tell ["Found symbol, but not variable. Expected variable with name " ++ name ++ " at " ++ showIdentPosition ident] >> return Nothing
 
 checkExpr (P.FunctionCall ident@(P.Ident name _ _) params) = do
   symbol <- checkExists ident
@@ -217,12 +216,12 @@ checkExpr (P.FunctionCall ident@(P.Ident name _ _) params) = do
     Just (Function _ _ ftype) -> do
       check <- mapM checkExpr (map snd params)
       if length check /= length (T.domain ftype)
-      then (tell ["Dominio inesperado para funcion"] >> return Nothing)
+      then (tell ["Domain length for function call at " ++ showIdentPosition ident ++ " doesn't match definition."] >> return Nothing)
       else do ok <- checkParams check (map snd (T.domain ftype))
               -- error $ (show check) ++ " " ++ (show (T.domain ftype) )
               if ok then return (Just (T.range ftype))
                     else return Nothing
-    Just _ -> tell ["Se esperaba funcion"] >> return Nothing
+    Just _ -> tell ["Symbol " ++ name ++ " found, but not function. Expected function at " ++ showIdentPosition ident] >> return Nothing
     Nothing -> return Nothing
 
 checkExpr (P.TypeCast e ident@(P.Ident name _ _)) = do
@@ -231,12 +230,12 @@ checkExpr (P.TypeCast e ident@(P.Ident name _ _)) = do
   -- error $ (show original) ++ " " ++ (show dest)
   case (original, dest) of
     (Just initialType, Just (TypeDeclaration _ _ finalType)) ->
-      maybe (tell ["No se puede realizar conversion"] >> return Nothing)
+      maybe (tell ["Can't perform type conversion from " ++ (show initialType) ++ " to " ++ (show finalType) ++ " at " ++ showIdentPosition ident] >> return Nothing)
       (\x -> return (Just x))
       (T.boperator "AS" initialType finalType)
-    (_, _) -> tell ["No se puede realizar conversion"] >> return Nothing
+    (_, _) -> tell ["Can't perform type conversion at " ++ showIdentPosition ident] >> return Nothing
 
-checkExpr (P.R l r _ _) = do
+checkExpr (P.R l r _ pos) = do
   left <- checkExpr l
   right <- checkExpr r
   case (left, right) of
@@ -244,7 +243,7 @@ checkExpr (P.R l r _ _) = do
       let (P.Number x) = l
           (P.Number y) = r
       return (Just (T.Array (read y - read x + 1) (read x, read y) T.Int32))
-    _ -> tell ["Error de tipos, se esperaban dos enteros en el rango"] >> return Nothing
+    _ -> tell ["Expected integer literals in the range bounds at " ++ show pos] >> return Nothing
 
 
 -- | Check that `ptype` exists and check current scope for the existence
