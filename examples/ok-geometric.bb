@@ -24,7 +24,7 @@ fn AreaRect(r:rect):int {
 	return abs(r.p2.x - r.p1.x) * abs(r.p2.y - r.p1.y);
 }
 
-fn main(args: char[][]) {
+fn main() {
 	var p1, p2 : point;
 	var r : rect;
 	

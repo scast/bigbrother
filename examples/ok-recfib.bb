@@ -1,5 +1,5 @@
 // Funcion de Fibonacci
-fn fib (f:int) {
+fn fib (f:int):int {
 	if (f<2) {
 		return 1;
 	}

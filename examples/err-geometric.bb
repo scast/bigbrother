@@ -15,7 +15,7 @@ struct rect {
 	blue : float
 };
 
-fn main(args: string[]) {
+fn main() {
 	var p1, p2 : point;
 	var p1 : rect;
 	
