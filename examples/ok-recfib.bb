@@ -1,5 +1,5 @@
 // Funcion de Fibonacci
-fn fib (f:int) {
+fn fib (f:int):int {
 	if (f<2) {
 		return 1;
 	}
@@ -10,7 +10,7 @@ fn main() : int {
 	var f:int;
 	grab! f;
 	if (f<0) {
-		var msg = "Oh no..":string;
+		var msg = "Oh no..":char[10];
 		print! msg;
 		return 1;
 	}

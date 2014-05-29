@@ -1,6 +1,7 @@
 var x = 50:¡nt; // Chamo que pusiste ahi? Eso no es una i
-cont pi = 3.14:double;
+const pi = 3.14:float;
 
 fn main() {
-	print! x*pi;
+	var c = x*pi:char;
+	print! c;
 }

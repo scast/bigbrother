@@ -6,13 +6,13 @@ fn fib (f:int) {
 	return fib(f-1)+fib(f-2);
 }
 
-fn main() : int {
+fn main() {
 	var f:int;
 	grab! f;
-	if () {      // Esto es if true o que ?
-		var f = "Oh no..":string;
+	if (f) {  // Esto es if true o que ?
+		var msg = "Oh no..":char[10];
 		print! msg;
 		return 1;
-	}}           // Chamo, ya cerraste el if...
+	}}        // Chamo, ya cerraste el if...
 	print! "El numero de Fibonacci de ", f, " es ", fib(f);
 }

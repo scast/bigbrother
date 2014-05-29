@@ -163,16 +163,11 @@ Para referirnos a números podemos utilizar cualquiera de las
 siguientes notaciones:
 
 - Notación decimal: 0, 1, 1, 2, 3, 5, 8, ...
-- Notación científica (redondea al entero más cercano): 6.022e23, ...
-- Notación para favorecer lectura: 1\_000\_000
-- Notación binaria: 0b0, 0b1, 0b1, 0b10, 0b11, 0b101, 0b1000, ...
-- Notación hexadecimal: 0x0, 0x1, 0x1, 0x2, 0x3, 0x5, 0x8
 
 El punto flotante se denota con el `.`. Para referirnos a números
 flotantes se puede utilizar:
 
 - Notación decimal: 0, 1, 1, 2.0, 3.0, 5, 8, 17.325...
-- Notación científica: 6.022e23, 1.5e-4 ...
 
 Los siguientes operadores aritméticos están definidos para todos los
 tipos numéricos: `+`, `-`, `*`, `/`, `**` (exponenciación), `%`
@@ -343,12 +338,6 @@ es correcta mientras que
 
 no lo es. 
 
-Como atajo para operaciones comunes, al momento de inicialización se
-puede utilizar la siguiente notación para llenarlo de un valor
-particular:
-
-`<arreglo> = <valor>`
-
 Se cuenta con los siguientes operadores para trabajar con arreglos:
 
 - `#arreglo` retorna la dimensión más externa del arreglo
@@ -374,12 +363,6 @@ var arr3 : int[10][10];
 
 // declaración de algo raro
 var arr4 : int[365][24][60][60];
-
-// poner todos los valores de arr1 en -1
-arr1 = -1;
-
-// también podemos hacerlo al declarar
-var arr5 = -1 : int[10];
 
 print! arr1[0]; // imprime -1
 arr1[0] = 1; // asigna 1 en la primera posicion del arreglo.
@@ -414,13 +397,6 @@ análisis sintáctico se eleva el identificador del tipo al alcance
 global, por lo que si existe algún otro identificador de alcance
 global con el mismo nombre resultará en un error estático.
 
-Una vez declarada la estructura, en cualquier punto del programa se
-puede declarar y a su vez inicializar sus campos utilizando la
-sintaxis común en C++:
-
-~~~
-var <id_1>(<valores para cada tipo en orden en que fueron declarados>): <nombre>;
-~~~
 
 En caso de obviar la inicialización, se toma el valor neutro de todos
 sus campos. En caso de que el campo sea también una estructura de
