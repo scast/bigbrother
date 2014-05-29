@@ -148,21 +148,21 @@ checkNotExists k cb = do
                          ++ showPosition symbol]
     Nothing  -> cb
 
-checkFields a fs = maybe
-                   (tell ["No se consiguio ese field"] >> return Nothing)
+checkFields a fs ident  = maybe
+                   (tell ["No field named " ++ a ++ " in field lookup expression in " ++ showIdentPosition ident] >> return Nothing)
                    (\x -> return (Just x))
                    (L.lookup a fs)
 
 
-checkParams received expected = do
+checkParams ident received expected = do
   result <- forM (zip received expected) $ \(x, y) -> do
     case x of
       Just t -> do
         let canConvert = T.boperator "AS" t y
         if isJust canConvert
           then return True
-          else tell ["No se pudo convertir parametro de tipo " ++ (show t) ++ " a parametro de tipo " ++ (show y)] >> return False
-      Nothing -> tell ["Se esperaba parametro de tipo " ++ (show y)] >> return False
+          else tell ["Could not convert parameter of type " ++ (show t) ++ " to parameter of type " ++ (show y) ++ " at " ++ showIdentPosition ident] >> return False
+      Nothing -> tell ["Expected parameter of type " ++ (show y) ++ " at " ++ showIdentPosition ident] >> return False
   return $ and result
 
 
@@ -171,8 +171,8 @@ checkExpr :: P.Expr -> Generator b (Maybe T.Type)
 checkExpr (P.Field e ident@(P.Ident name _ _ )) = do
   leftType <- checkExpr e -- >> checkExists name
   case leftType of
-    Just (T.Record fs) -> checkFields name fs
-    Just (T.Union fs) -> checkFields name fs
+    Just (T.Record fs) -> checkFields name fs ident
+    Just (T.Union fs) -> checkFields name fs ident
     _ -> tell ["Trying to find a field on a non extended type " ++ showIdentPosition ident] >> return Nothing
 checkExpr (P.B op l r pos) = do
   leftType <- checkExpr l
@@ -217,7 +217,7 @@ checkExpr (P.FunctionCall ident@(P.Ident name _ _) params) = do
       check <- mapM checkExpr (map snd params)
       if length check /= length (T.domain ftype)
       then (tell ["Domain length for function call at " ++ showIdentPosition ident ++ " doesn't match definition."] >> return Nothing)
-      else do ok <- checkParams check (map snd (T.domain ftype))
+      else do ok <- checkParams ident check (map snd (T.domain ftype))
               -- error $ (show check) ++ " " ++ (show (T.domain ftype) )
               if ok then return (Just (T.range ftype))
                     else return Nothing
@@ -388,14 +388,14 @@ handleInstruction returnType inst = case inst of
     case block of
       (Just e, insts) -> do t <- checkExpr e
                             case t of Just T.Bool -> trackAndBuild returnType empty insts 0
-                                      _ -> tell ["Se esperaba una expresion booleana, IF"] >> return ()
+                                      _ -> tell ["Expected boolean expression in `if` instruction condition at " ++ (show (P.getPos e))] >> return ()
       (Nothing, insts) -> trackAndBuild returnType empty insts 0
 
   -- While loop
   P.While expr insts -> do
     t <- checkExpr expr
     case t of Just T.Bool -> trackAndBuild returnType empty insts 0
-              _ -> tell ["Se esperaba una expresion booleana, WHILE"] >> return ()
+              _ -> tell ["Expected boolean expression in `while` instruction condition at " ++ (show (P.getPos expr))] >> return ()
 
   -- For loop
   P.For ptype ident@(P.Ident name _ _) expr insts -> do
