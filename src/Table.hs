@@ -21,21 +21,17 @@ import Data.Maybe (mapMaybe, listToMaybe, catMaybes, maybe, fromJust, isJust)
 import Control.Monad.RWS
 import Control.Lens hiding (mapping) -- have no fear.
 
--- FIXME:
--- hay que tener cuidado con typeSymbol y typename.
--- TODO:
--- hay que type check expresiones e instrucciones...
-
-
 data Extended = Struct | Enum | Union
               deriving (Show, Eq, Ord)
 
 data Symbol = TypeDeclaration { ident :: P.Ident
                               , table :: Table
-                              , stype :: T.Type }
+                              , stype :: T.Type
+                              }
             | Variable { ident :: P.Ident
                        , vkind :: P.VKind
                        , stype :: T.Type
+                       , offset :: Int
                        }
             | Function { ident :: P.Ident
                        , table :: Table
@@ -49,7 +45,8 @@ data Table = Table { _mapping :: M.Map String Symbol
              deriving (Show, Ord, Eq)
 
 data GeneratorState = GeneratorState { _current :: Table
-                                     , _path :: [Table] }
+                                     , _path :: [Table]
+                                     , _actualOffset :: Int }
                       deriving (Show, Eq, Ord)
 
 type Generator b a = RWS b [String] GeneratorState  a
@@ -187,7 +184,7 @@ checkExpr (P.Str s) = let n = (length s)
 checkExpr (P.Var (P.Ident name _ _ )) = do
   symbol <- checkExists name
   case symbol of
-    Just (Variable i v s) -> return (Just s)
+    Just (Variable i v s o) -> return (Just s)
     _ -> tell ["Se esperaba una variable " ++ name] >> return Nothing -- FIXME: mejor descripcion
 
 checkExpr (P.FunctionCall (P.Ident name _ _) params) = do
@@ -257,7 +254,9 @@ addVariable ident@(P.Ident name _ _) kind ptype =
     case foundSymbol of
       TypeDeclaration _ _ stype -> do
         sst <- toActualType ptype
-        let newSymbol = Variable ident kind sst
+        offset <- use actualOffset
+        let newSymbol = Variable ident kind sst offset
+        actualOffset += T.sizeOf sst
         current.mapping.at name ?= newSymbol
       _ -> tell ["Tipo desconocido"] -- FIXME: better description
 
@@ -317,15 +316,15 @@ shallowPass = do
         addShallowType tipo
 
 -- | Build a new table in the new scope of the instruction.
-trackAndBuild :: T.Type -> Table -> [P.Instruction] -> Generator b ()
-trackAndBuild returnType table tree = do
+trackAndBuild :: T.Type -> Table -> [P.Instruction] -> Int -> Generator b ()
+trackAndBuild returnType table tree initialSz = do
   st <- get
   -- Create a new table
   let action = do
         insts <- ask
         forM_ insts (handleInstruction returnType)
       (final, acc) =
-        buildTable action tree (GeneratorState table (st^.current:st^.path))
+        buildTable action tree (GeneratorState table (st^.current:st^.path) initialSz)
   tell acc
   current.sons <>= [final^.current]
 
@@ -364,14 +363,14 @@ handleInstruction returnType inst = case inst of
   P.If blocks -> forM_ blocks $ \block ->
     case block of
       (Just e, insts) -> do t <- checkExpr e
-                            case t of Just T.Bool -> trackAndBuild returnType empty insts
+                            case t of Just T.Bool -> trackAndBuild returnType empty insts 0
                                       _ -> tell ["Se esperaba una expresion booleana, IF"] >> return ()
-      (Nothing, insts) -> trackAndBuild returnType empty insts
+      (Nothing, insts) -> trackAndBuild returnType empty insts 0
 
   -- While loop
   P.While expr insts -> do
     t <- checkExpr expr
-    case t of Just T.Bool -> trackAndBuild returnType empty insts
+    case t of Just T.Bool -> trackAndBuild returnType empty insts 0
               _ -> tell ["Se esperaba una expresion booleana, WHILE"] >> return ()
 
   -- For loop
@@ -380,10 +379,10 @@ handleInstruction returnType inst = case inst of
     if isJust sym
     then do
             t <- checkExpr expr
-            case t of Just (T.Array _ _ t) -> do let newTable = M.singleton name (Variable ident P.VarKind t) -- FIXME: change to iterating type
-                                                 trackAndBuild returnType (Table newTable []) insts
-                      Just (T.ReferenceTo (T.Array _ _ t)) -> do let newTable = M.singleton name (Variable ident P.VarKind t) -- FIXME: change to iterating type
-                                                                 trackAndBuild returnType (Table newTable []) insts
+            case t of Just (T.Array _ _ t) -> do let newTable = M.singleton name (Variable ident P.VarKind t 0) -- FIXME: change to iterating type
+                                                 trackAndBuild returnType (Table newTable []) insts (T.sizeOf t)
+                      Just (T.ReferenceTo (T.Array _ _ t)) -> do let newTable = M.singleton name (Variable ident P.VarKind t 0) -- FIXME: change to iterating type
+                                                                 trackAndBuild returnType (Table newTable []) insts (T.sizeOf t)
                       _ -> tell ["Se esperaba un tipo iterable, for"] >> return ()
     else return ()
 
@@ -411,7 +410,9 @@ handleFunction (P.Function ident parameters ptype insts) = do
     -- Check and add this symbol.
     check (P.identName pident) $ do
       sst <- toActualType ptype
-      let newSymbol = Variable pident P.VarKind sst -- FIXME: change to correct type
+      offset <- use actualOffset
+      let newSymbol = Variable pident P.VarKind sst offset  -- FIXME: change to correct type
+      actualOffset += T.sizeOf sst
       current.mapping.at (P.identName pident) ?= newSymbol
 
     -- Check possible initializations.
@@ -444,7 +445,7 @@ handleComplexType tipo callback = do
 
     _ -> do
       addShallowType tipo
-      let initial = (GeneratorState empty (st^.current:st^.path))
+      let initial = (GeneratorState empty (st^.current:st^.path) 0)
           (s, w) = buildTable (handleType tipo) [] initial
       tell w
       current.sons <>= [s^.current]
@@ -488,7 +489,7 @@ addGlobals :: Table -> Generator b ()
 addGlobals newTable = do
   st <- get
   let shallow = M.foldlWithKey f M.empty (newTable^.mapping)
-      f accum key x@(Variable _ P.EnumVar _) = M.insert key x accum
+      f accum key x@(Variable _ P.EnumVar _ _) = M.insert key x accum
       f accum key x@(TypeDeclaration _ _ _) = M.insert key x accum -- FIXME
       f accum _ _ = accum
   current.mapping .= M.union (st^.current.mapping) shallow
@@ -521,7 +522,7 @@ computeFields (P.TypeEnum _ inits) = do
 handleGlobal :: P.Global -> Generator b ()
 handleGlobal global@(P.Function ident@(P.Ident name _ _) vars ptype insts) = do
   st <- get
-  let initial = GeneratorState empty [st^.current, languageTable]
+  let initial = GeneratorState empty [st^.current, languageTable] 0
       (s, w) = buildTable (handleFunction global) [global] initial
   tell w
   current.sons <>= [s^.current]
@@ -533,7 +534,7 @@ handleGlobal global@(P.Function ident@(P.Ident name _ _) vars ptype insts) = do
 -- and enum variables to the global scope.
 handleGlobal global@(P.DefCombine tipo) = do
   st <- get
-  let initial = GeneratorState empty [st^.current, languageTable]
+  let initial = GeneratorState empty [st^.current, languageTable] 0
       (s, w) = buildTable (handleType tipo) [global] initial
   tell w
   current.sons <>= [s^.current]

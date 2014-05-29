@@ -1,6 +1,7 @@
 module TypeChecking ( Type(..)
                     , boperator
                     , uoperator
+                    , sizeOf
                     ) where
 
 import Data.Maybe
@@ -22,6 +23,20 @@ data Type = Char
                      , range :: Type }
           | TypeDef { stype :: Type }
           deriving (Eq, Ord, Show, Read)
+
+sizeOf Char = 1
+sizeOf Int32 = 4
+sizeOf Float = 8
+sizeOf Bool = 1
+sizeOf (Array sz _ t) = sz*(sizeOf t)
+sizeOf (Record fields)  = foldl f 0 fields
+  where f acc (_, t) = acc + (sizeOf t)
+sizeOf (Union fields) = foldl f 0 fields
+  where f acc (_, t) = acc `max` (sizeOf t)
+sizeOf (Enum _) = sizeOf Int32
+sizeOf (TypeDef t) = sizeOf t
+sizeOf (ReferenceTo t) = 4
+sizeOf _ = 0
 
 path :: Type -> LCA.Path Type
 -- Float tree.

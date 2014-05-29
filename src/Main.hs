@@ -35,14 +35,15 @@ imprimirSimbolo (T.TypeDeclaration (P.Ident nombre l c) table tp) ubic =
      else empty)
   <> text ("type definition: " ++ (show tp))
 
-imprimirSimbolo (T.Variable (P.Ident nombre l c) kind tp) _ =
+imprimirSimbolo (T.Variable (P.Ident nombre l c) kind tp offset) _ =
   text "Variable => "
   <> text (nombre ++ " ")
   <> (if (l > 0 && c > 0)
      then brackets (text ((show l) ++ ":" ++ (show c)))
      else empty)
   <> text (" " ++ show kind)
-  <> text ("type -> " ++ (show tp) )
+  <> text (" type -> " ++ (show tp) )
+  <> text (" offset -> " ++ (show offset))
 
 imprimirSimbolo (T.Function (P.Ident nombre l c) table tp) ubic =
   text "Function => "
@@ -151,7 +152,7 @@ main = do
   mapM_ putStrLn errors
   -- run parser
   tree <- tryParse tokens
-  let (st, w) = execRWS T.buildM tree (T.GeneratorState T.empty [])
+  let (st, w) = execRWS T.buildM tree (T.GeneratorState T.empty [] 0)
   setSGR [SetColor Foreground Vivid Red]
   mapM_ putStrLn w
   setSGR [SetColor Foreground Vivid White]
