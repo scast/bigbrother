@@ -54,10 +54,10 @@
 >    BREAK    { L _ LBreak s }
 >    CONTINUE { L _ LContinue s }
 >    RETURN   { L _ LReturn s }
->    '&&'     { L _ LAnd $$ }
->    '||'     { L _ LOr $$ }
->    '!'      { L _ LNot $$ }
->    '^'      { L _ LXor $$ }
+>    '&&'     { L _ LAnd _ }
+>    '||'     { L _ LOr _ }
+>    '!'      { L _ LNot _ }
+>    '^'      { L _ LXor _ }
 >    '='      { L _ LEqual s }
 >    ':'      { L _ LColon s }
 >    ';'      { L _ LSemicolon s }
@@ -67,24 +67,24 @@
 >    '}'      { L _ LCloseCurly s }
 >    '('      { L _ LOpenParenthesis s }
 >    ')'      { L _ LCloseParenthesis s }
->    '#'      { L _ LHash $$ }
->    '%'      { L _ LPercentage $$ }
+>    '#'      { L _ LHash _ }
+>    '%'      { L _ LPercentage _ }
 >    ','      { L _ LComma s }
 >    '.'      { L _ LDot s }
->    '..'     { L _ LDots s }
->    '=='     { L _ LEquals $$ }
->    '!='     { L _ LNotEquals $$ }
->    '>'      { L _ LGreater $$ }
->    '>='     { L _ LGreaterEqual $$ }
->    '<'      { L _ LLess $$ }
->    '<='     { L _ LLessEqual $$ }
->    '+'      { L _ LPlus $$ }
->    '-'      { L _ LMinus $$ }
->    '*'      { L _ LMul $$ }
->    '/'      { L _ LDiv $$ }
->    '**'     { L _ LExp $$ }
->    '>>'     { L _ LRShift $$ }
->    '<<'     { L _ LLShift $$ }
+>    '..'     { L _ LDots _ }
+>    '=='     { L _ LEquals _ }
+>    '!='     { L _ LNotEquals _ }
+>    '>'      { L _ LGreater _ }
+>    '>='     { L _ LGreaterEqual _ }
+>    '<'      { L _ LLess _ }
+>    '<='     { L _ LLessEqual _ }
+>    '+'      { L _ LPlus _ }
+>    '-'      { L _ LMinus _ }
+>    '*'      { L _ LMul _ }
+>    '/'      { L _ LDiv _ }
+>    '**'     { L _ LExp _ }
+>    '>>'     { L _ LRShift _ }
+>    '<<'     { L _ LLShift _ }
 >    '+='     { L _ LPlusEqual s }
 >    '-='     { L _ LMinusEqual s }
 >    '*='     { L _ LMulEqual s }
@@ -97,10 +97,10 @@
 >    '^='     { L _ LXorEqual s }
 >    '&&='    { L _ LAndEqual s }
 >    '||='    { L _ LOrEqual s }
->    '|'      { L _ LBOr $$ }
->    '&'      { L _ LBAnd $$ }
->    '~'      { L _ LBNot $$ }
->    '@'      { L _  LAt $$ }
+>    '|'      { L _ LBOr _ }
+>    '&'      { L _ LBAnd _ }
+>    '~'      { L _ LBNot _ }
+>    '@'      { L _  LAt _ }
 
 > %%
 
@@ -159,10 +159,10 @@
 
 > DIMENSIONS
 >   : '[' NUMBER ']'            {% returnM  ( [Just (Number $2)] ) }
->   | '[' NUMBER '..' NUMBER ']'            {% returnM  ([Just (R (Number $2) (Number $4) (Number "1"))]) }
+>   | '[' NUMBER '..' NUMBER ']'            {% returnM  ([Just (R (Number $2) (Number $4) (Number "1") (saveExprPos $3) )]) }
 -- >   | '[' ']'                 {% returnM  ( [Nothing] ) }
 >   | DIMENSIONS '[' NUMBER ']' {% returnM  ( $1 ++ [Just (Number $3)] ) }
->   | DIMENSIONS '[' NUMBER '..' NUMBER ']' {% returnM  ( $1 ++ [Just (R (Number $3) (Number $5) (Number "1"))] ) }
+>   | DIMENSIONS '[' NUMBER '..' NUMBER ']' {% returnM  ( $1 ++ [Just (R (Number $3) (Number $5) (Number "1") (saveExprPos $4) ) ] ) }
 -- >   | DIMENSIONS '[' ']'      {% returnM  ( $1 ++ [Nothing] ) }
 
 > INSTONADA
@@ -237,33 +237,33 @@
 >   | EXPR '.' IDENT           {% returnM  ( Field $1 (saveIdent $3) ) }
 >   | EXPR AS IDENT            {% returnM  ( TypeCast $1 (saveIdent $3) ) }
 >   | '(' EXPR ')'             {% returnM  ( $2 ) }
->   | EXPR '+' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '-' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '*' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '/' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '&&' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '||' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '^' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '==' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '!=' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '>' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '>=' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '<' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '<=' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '**' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '>>' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '<<' EXPR           {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '|' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '&' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | EXPR '%' EXPR            {% returnM  ( B $2 $1 $3 ) }
->   | NUMBER '..' NUMBER           {% returnM  ( R (Number $1) (Number $3) (Number "1") ) }
->   | '#' EXPR                 {% returnM  ( U $1 $2 ) }
->   | '@' EXPR                 {% returnM  ( U $1 $2 ) }
->   | '~' EXPR                 {% returnM  ( U $1 $2 ) }
->   | '-' EXPR %prec NEG       {% returnM  ( U $1 $2  ) }
->   | '+' EXPR %prec PLUS      {% returnM  ( U $1 $2  ) }
->   | '!' EXPR                 {% returnM  ( U $1 $2 ) }
->   | EXPR '[' EXPR ']'        {% returnM  ( B "[]" $1 $3 ) }
+>   | EXPR '+' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '-' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '*' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '/' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '&&' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '||' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '^' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '==' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '!=' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '>' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '>=' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '<' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '<=' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '**' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '>>' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '<<' EXPR           {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '|' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '&' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | EXPR '%' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
+>   | NUMBER '..' NUMBER       {% returnM  ( R (Number $1) (Number $3) (Number "1") (saveExprPos $2) ) }
+>   | '#' EXPR                 {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
+>   | '@' EXPR                 {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
+>   | '~' EXPR                 {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
+>   | '-' EXPR %prec NEG       {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
+>   | '+' EXPR %prec PLUS      {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
+>   | '!' EXPR                 {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
+>   | EXPR '[' EXPR ']'        {% returnM  ( B "[]" $1 $3 (getPos $1) ) }
 -- >   | '(' error ')' { Str "error" }
 
 > LISTAONADA
@@ -315,6 +315,13 @@
 > saveIdent :: Lexeme -> Ident
 > saveIdent (L a l s) = Ident s line col
 >     where (AlexPn _ line col) = a
+
+> saveExprPos :: Lexeme -> (Int, Int)
+> saveExprPos (L a l s) = (line, col)
+>     where (AlexPn _ line col) = a
+
+> saveExprOp :: Lexeme -> String
+> saveExprOp (L a l s) = s
 
 > type ParseError = String
 > type Parser = EitherT (ParseError, [Lexeme]) (Writer [ParseError])

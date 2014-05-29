@@ -6,6 +6,7 @@ module ParserTypes ( Type(..)
                    , Initialization(..)
                    , ListOfDef(..)
                    , Ident(..)
+                   , getPos
                    ) where
 data Type = Type Ident
           | ArrayOf Type [Maybe Expr]
@@ -36,8 +37,8 @@ data Global = GlobalVar VKind Type [Initialization]
             | DefCombine Type
             deriving (Show)
 
-data Expr = B String Expr Expr
-          | U String Expr
+data Expr = B String Expr Expr (Int, Int)
+          | U String Expr (Int, Int)
           | Field Expr Ident
           | Char String
           | Number String
@@ -47,7 +48,7 @@ data Expr = B String Expr Expr
           | Var Ident
           | FunctionCall Ident [(Maybe Ident, Expr)]
           | TypeCast Expr Ident
-          | R Expr Expr Expr
+          | R Expr Expr Expr (Int, Int)
           deriving (Show)
 
 data VKind = VarKind
@@ -62,3 +63,12 @@ data Ident = Ident { identName :: String
                    , line :: Int
                    , column :: Int }
            deriving (Show, Ord, Eq)
+
+getPos :: Expr -> (Int, Int)
+getPos (B _ _ _ x) = x
+getPos (U _ _ x) = x
+getPos (Field _ e) = (line e, column e)
+getPos (Var e) = (line e, column e)
+getPos (FunctionCall ident _) = (line ident, column ident)
+getPos (TypeCast _ ident) = (line ident, column ident)
+getPos _ = ((-1), (-1))

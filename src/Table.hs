@@ -169,7 +169,7 @@ checkExpr (P.Field e (P.Ident name _ _ )) = do
     Just (T.Record fs) -> checkFields name fs
     Just (T.Union fs) -> checkFields name fs
     _ -> tell ["Solo se puede hacer . whatever a tipos extendidos"] >> return Nothing
-checkExpr (P.B op l r) = do
+checkExpr (P.B op l r _ ) = do
   leftType <- checkExpr l
   rightType <- checkExpr r
   case (leftType, rightType) of
@@ -178,7 +178,7 @@ checkExpr (P.B op l r) = do
       (\x -> return (Just x))
       (T.boperator op lt rt)
     (_, _) -> tell ["No se pueden operar."] >> return Nothing
-checkExpr (P.U op u) = do
+checkExpr (P.U op u _ ) = do
   leftType <- checkExpr u
   case leftType of
     Just lt ->
@@ -230,7 +230,7 @@ checkExpr (P.TypeCast e ident@(P.Ident name _ _)) = do
       (T.boperator "AS" initialType finalType)
     (_, _) -> tell ["No se puede realizar conversion"] >> return Nothing
 
-checkExpr (P.R l r _) = do
+checkExpr (P.R l r _ _) = do
   left <- checkExpr l
   right <- checkExpr r
   case (left, right) of
@@ -368,7 +368,7 @@ handleInstruction returnType inst = case inst of
       checkParams [rightExpr] [fromJust leftType] >> return ()
     else return ()
   P.Assign op left expr -> do
-    handleInstruction returnType (P.Assign "=" left (P.B op left expr))
+    handleInstruction returnType (P.Assign "=" left (P.B op left expr (-1, -1))) -- FIXME
 
   -- Grab instruction
   P.Grab expr ->
@@ -570,7 +570,7 @@ handleGlobal _ = return ()
 interpretDims :: [Maybe P.Expr] -> [(Int, (Int, Int))]
 interpretDims = map f
   where f (Just (P.Number x)) = (read x, (0, (read x)-1))
-        f (Just (P.R (P.Number x) (P.Number y) _)) = (read y - read x + 1, (read x, read y))
+        f (Just (P.R (P.Number x) (P.Number y) _ _)) = (read y - read x + 1, (read x, read y))
 
 toActualType :: P.Type -> Generator b T.Type
 toActualType (P.ArrayOf ptype dims) = do
