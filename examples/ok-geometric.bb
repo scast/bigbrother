@@ -1,6 +1,6 @@
 type miint = int;
 
-fn abs(n:int):int {
+fn abs(n:float):float {
 	if (n<0) {
 		return -n;
 	} else {
