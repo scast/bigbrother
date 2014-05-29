@@ -374,8 +374,8 @@ handleInstruction returnType inst = case inst of
       ok <- checkParams (show (P.getPos expr)) [rightExpr] [fromJust leftType]
       if ok then return () else tell ["Expected " ++ (show (fromJust leftType)) ++ " at " ++ (show (P.getPos left))]
     else return ()
-  P.Assign op left expr _ -> do
-    handleInstruction returnType (P.Assign "=" left (P.B op left expr (-1, -1)) (-1, -1)) -- FIXME
+  P.Assign op left expr pos -> do
+    handleInstruction returnType (P.Assign "=" left (P.B op left expr pos) pos) -- FIXME
 
   -- Grab instruction
   P.Grab expr ->
