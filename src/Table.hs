@@ -154,15 +154,15 @@ checkFields a fs ident  = maybe
                    (L.lookup a fs)
 
 
-checkParams ident received expected = do
+checkParams xss received expected = do
   result <- forM (zip received expected) $ \(x, y) -> do
     case x of
       Just t -> do
         let canConvert = T.boperator "AS" t y
         if isJust canConvert
           then return True
-          else tell ["Could not convert parameter of type " ++ (show t) ++ " to parameter of type " ++ (show y) ++ " at " ++ showIdentPosition ident] >> return False
-      Nothing -> tell ["Expected parameter of type " ++ (show y) ++ " at " ++ showIdentPosition ident] >> return False
+          else tell ["Could not convert parameter of type " ++ (show t) ++ " to parameter of type " ++ (show y) ++ " at " ++ xss] >> return False
+      Nothing -> tell ["Expected parameter of type " ++ (show y) ++ " at " ++ xss] >> return False
   return $ and result
 
 
@@ -217,7 +217,7 @@ checkExpr (P.FunctionCall ident@(P.Ident name _ _) params) = do
       check <- mapM checkExpr (map snd params)
       if length check /= length (T.domain ftype)
       then (tell ["Domain length for function call at " ++ showIdentPosition ident ++ " doesn't match definition."] >> return Nothing)
-      else do ok <- checkParams ident check (map snd (T.domain ftype))
+      else do ok <- checkParams (showIdentPosition ident) check (map snd (T.domain ftype))
               -- error $ (show check) ++ " " ++ (show (T.domain ftype) )
               if ok then return (Just (T.range ftype))
                     else return Nothing
@@ -363,14 +363,14 @@ handleInstruction returnType inst = case inst of
         Just expr -> do
           exprType <- checkExpr expr
           sst <- toActualType tipo
-          ok <- checkParams [exprType] [sst]
+          ok <- checkParams (showIdentPosition ident) [exprType] [sst]
           return ()
   -- Assignment
   P.Assign "=" left expr _ -> do
     leftType <- checkExpr left
     rightExpr <- checkExpr expr
     if isJust leftType then
-      checkParams [rightExpr] [fromJust leftType] >> return ()
+      checkParams (show (P.getPos expr)) [rightExpr] [fromJust leftType] >> return ()
     else return ()
   P.Assign op left expr _ -> do
     handleInstruction returnType (P.Assign "=" left (P.B op left expr (-1, -1)) (-1, -1)) -- FIXME
@@ -388,14 +388,17 @@ handleInstruction returnType inst = case inst of
     case block of
       (Just e, insts) -> do t <- checkExpr e
                             case t of Just T.Bool -> trackAndBuild returnType empty insts 0
-                                      _ -> tell ["Expected boolean expression in `if` instruction condition at " ++ (show (P.getPos e))] >> return ()
+                                      _ -> tell ["Expected boolean expression in `if` instruction condition at " ++ (show (P.getPos e))] >> trackAndBuild returnType empty insts 0
       (Nothing, insts) -> trackAndBuild returnType empty insts 0
+
+  -- Loop
+  P.Loop insts -> trackAndBuild returnType empty insts 0
 
   -- While loop
   P.While expr insts -> do
     t <- checkExpr expr
     case t of Just T.Bool -> trackAndBuild returnType empty insts 0
-              _ -> tell ["Expected boolean expression in `while` instruction condition at " ++ (show (P.getPos expr))] >> return ()
+              _ -> tell ["Expected boolean expression in `while` instruction condition at " ++ (show (P.getPos expr))] >> trackAndBuild returnType empty insts 0
 
   -- For loop
   P.For ptype ident@(P.Ident name _ _) expr insts -> do
@@ -407,14 +410,14 @@ handleInstruction returnType inst = case inst of
                                                  trackAndBuild returnType (Table newTable []) insts (T.sizeOf t)
                       Just (T.ReferenceTo (T.Array _ _ t)) -> do let newTable = M.singleton name (Variable ident P.VarKind t 0) -- FIXME: change to iterating type
                                                                  trackAndBuild returnType (Table newTable []) insts (T.sizeOf t)
-                      _ -> tell ["Expected iterable type (array) at " ++ showIdentPosition ident] >> return ()
+                      _ -> tell ["Expected iterable type (array) at " ++ showIdentPosition ident] >> trackAndBuild returnType (Table M.empty []) insts 0
     else return ()
 
   -- Return instruction
   P.Return (Just expr) -> do
     t <- checkExpr expr
-    ok <- checkParams [t] [returnType]
-    return ()
+    ok <- checkParams (show (P.getPos expr)) [t] [returnType]
+    if ok then return () else tell ["Expected return of " ++ (show returnType) ++ " at " ++ (show (P.getPos expr))]
 
   -- A function call
   P.VoidCall ident@(P.Ident name _ _) inits -> do
