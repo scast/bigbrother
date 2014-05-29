@@ -13,6 +13,6 @@ fn main() {
 		var msg = "Oh no..":char[10];
 		print! msg;
 		return 1;
-	}}        // Chamo, ya cerraste el if...
+	}
 	print! "El numero de Fibonacci de ", f, " es ", fib(f);
 }
