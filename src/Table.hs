@@ -191,8 +191,14 @@ checkExpr (P.Char _) = return (Just T.Char)
 checkExpr (P.Number _) = return (Just T.Int32)
 checkExpr (P.Float _) = return (Just T.Float)
 checkExpr (P.Bool _) = return (Just T.Bool)
-checkExpr (P.Str s) = let n = (length s)
-                      in return (Just (T.Array (n+1) (0, n) T.Char))
+checkExpr (P.Str s) = do
+  let n = (length s)
+      res = (T.Array (n+1) (0, n) T.Char)
+  offset <- use actualOffset
+  mapping <- use (current.mapping)
+  let newSymbol = Variable (P.Ident (show $ M.size mapping) (-1) (-1)) P.Const res offset
+  actualOffset += T.sizeOf res
+  return $ Just res
 checkExpr (P.Var ident@(P.Ident name _ _ )) = do
   symbol <- checkExists ident
   case symbol of
