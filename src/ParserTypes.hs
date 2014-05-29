@@ -17,7 +17,7 @@ data Type = Type Ident
           deriving (Show)
 
 data Instruction = LocalVar Type [Initialization]
-                 | Assign String Expr Expr
+                 | Assign String Expr Expr (Int, Int)
                  | If [(Maybe Expr, [Instruction])]
                  | Loop [Instruction]
                  | While Expr [Instruction]

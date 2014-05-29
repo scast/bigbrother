@@ -58,7 +58,7 @@
 >    '||'     { L _ LOr _ }
 >    '!'      { L _ LNot _ }
 >    '^'      { L _ LXor _ }
->    '='      { L _ LEqual s }
+>    '='      { L _ LEqual _ }
 >    ':'      { L _ LColon s }
 >    ';'      { L _ LSemicolon s }
 >    '['      { L _ LOpenBracket s }
@@ -85,18 +85,18 @@
 >    '**'     { L _ LExp _ }
 >    '>>'     { L _ LRShift _ }
 >    '<<'     { L _ LLShift _ }
->    '+='     { L _ LPlusEqual s }
->    '-='     { L _ LMinusEqual s }
->    '*='     { L _ LMulEqual s }
->    '/='     { L _ LDivEqual s }
->    '%='     { L _ LModEqual s }
->    '>>='    { L _ LRShiftEqual s }
->    '<<='    { L _ LLShiftEqual s }
->    '&='     { L _ LBAndEqual s }
->    '|='     { L _ LBOrEqual s }
->    '^='     { L _ LXorEqual s }
->    '&&='    { L _ LAndEqual s }
->    '||='    { L _ LOrEqual s }
+>    '+='     { L _ LPlusEqual _ }
+>    '-='     { L _ LMinusEqual _ }
+>    '*='     { L _ LMulEqual _ }
+>    '/='     { L _ LDivEqual _ }
+>    '%='     { L _ LModEqual _ }
+>    '>>='    { L _ LRShiftEqual _ }
+>    '<<='    { L _ LLShiftEqual _ }
+>    '&='     { L _ LBAndEqual _ }
+>    '|='     { L _ LBOrEqual _ }
+>    '^='     { L _ LXorEqual _ }
+>    '&&='    { L _ LAndEqual _ }
+>    '||='    { L _ LOrEqual _ }
 >    '|'      { L _ LBOr _ }
 >    '&'      { L _ LBAnd _ }
 >    '~'      { L _ LBNot _ }
@@ -212,19 +212,19 @@
 >   | FOR TYPESIMPLEREF IDENT ':' EXPR BLOQUE {% returnM  ( For $2 (saveIdent $3) $5 $6 ) }
 
 > ASIGNACION
->   : EXPR '=' EXPR   {% returnM  ( Assign "="  $1 $3 ) }
->   | EXPR '+=' EXPR  {% returnM  ( Assign "+"  $1 $3 ) }
->   | EXPR '-=' EXPR  {% returnM  ( Assign "-"  $1 $3 ) }
->   | EXPR '*=' EXPR  {% returnM  ( Assign "*"  $1 $3 ) }
->   | EXPR '/=' EXPR  {% returnM  ( Assign "/"  $1 $3 ) }
->   | EXPR '%=' EXPR  {% returnM  ( Assign "%"  $1 $3 ) }
->   | EXPR '>>=' EXPR {% returnM  ( Assign ">>" $1 $3 ) }
->   | EXPR '<<=' EXPR {% returnM  ( Assign "<<" $1 $3 ) }
->   | EXPR '&=' EXPR  {% returnM  ( Assign "&"  $1 $3 ) }
->   | EXPR '|=' EXPR  {% returnM  ( Assign "|"  $1 $3 ) }
->   | EXPR '^=' EXPR  {% returnM  ( Assign "^"  $1 $3 ) }
->   | EXPR '&&=' EXPR {% returnM  ( Assign "&&" $1 $3 ) }
->   | EXPR '||=' EXPR {% returnM  ( Assign "||" $1 $3 ) }
+>   : EXPR '=' EXPR   {% returnM  ( Assign "="  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '+=' EXPR  {% returnM  ( Assign "+"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '-=' EXPR  {% returnM  ( Assign "-"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '*=' EXPR  {% returnM  ( Assign "*"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '/=' EXPR  {% returnM  ( Assign "/"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '%=' EXPR  {% returnM  ( Assign "%"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '>>=' EXPR {% returnM  ( Assign ">>" $1 $3 (saveExprPos $2) ) }
+>   | EXPR '<<=' EXPR {% returnM  ( Assign "<<" $1 $3 (saveExprPos $2) ) }
+>   | EXPR '&=' EXPR  {% returnM  ( Assign "&"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '|=' EXPR  {% returnM  ( Assign "|"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '^=' EXPR  {% returnM  ( Assign "^"  $1 $3 (saveExprPos $2) ) }
+>   | EXPR '&&=' EXPR {% returnM  ( Assign "&&" $1 $3 (saveExprPos $2) ) }
+>   | EXPR '||=' EXPR {% returnM  ( Assign "||" $1 $3 (saveExprPos $2) ) }
 
 > EXPR
 >   : CHAR                     {% returnM  ( Char $1 ) }
