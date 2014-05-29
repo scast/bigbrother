@@ -89,21 +89,32 @@ languageTable = Table { _mapping = languageSymbols
 
 -- | Print position where this symbol was defined
 showPosition :: Symbol -> String
-showPosition sym = let id = ident sym
-                   in show (P.line id) ++ ":" ++ show (P.column id)
+showPosition = showIdentPosition . ident
+
+showIdentPosition :: P.Ident -> String
+showIdentPosition p = (show (P.line p)) ++ ":" ++ (show (P.column p))
 
 -- | Get a type from the tables using its name or store an error.
-findType :: String -> Generator b (Maybe Symbol)
-findType k = do
+findType :: String -> P.Ident -> Generator b (Maybe Symbol)
+findType k ident = do
   st <- get
   case lookup k (st^.current:st^.path) of
     result@(Just (TypeDeclaration _ _ _)) -> return result
-    x -> tell ["Unknown type " ++ k] >> return x
+    x -> tell ["Unknown type " ++ k ++ " " ++ (showIdentPosition ident) ] >> return x
 
 -- | Get a type from the tables using its type structure or store an
 -- error.
 typeSymbol :: P.Type -> Generator b (Maybe Symbol)
-typeSymbol = findType . typename
+typeSymbol p = findType name ident
+  where name = typename p
+        ident = getIdent p
+
+getIdent (P.Type ident) = ident
+getIdent (P.ArrayOf t _) = getIdent t
+getIdent (P.ReferenceTo t) = getIdent t
+getIdent (P.TypeStruct t _) = t
+getIdent (P.TypeUnion t _) = t
+getIdent (P.TypeEnum t _) = t
 
 typename (P.Type (P.Ident x _ _)) = x
 typename (P.ArrayOf x _) = typename x
@@ -114,12 +125,13 @@ typename (P.TypeUnion (P.Ident x _ _) _) = x
 
 
 -- | Check if a symbol exists otherwise stores an error.
-checkExists :: String -> Generator b (Maybe Symbol)
-checkExists name = do
+checkExists :: P.Ident -> Generator b (Maybe Symbol)
+checkExists ident@(P.Ident name _ _) = do
   st <- get
   if name `member` (st^.current:st^.path)
   then return (lookup name (st^.current:st^.path))
-  else tell ["Symbol " ++ (name) ++ "has not been defined."] >> return Nothing
+  else tell ["Symbol " ++ (name) ++ "has not been defined "
+            ++ showIdentPosition ident ++ ". "] >> return Nothing
 
 -- | Check if a symbol has already been defined.
 checkNotExists :: String -> Generator b () -> Generator b ()
@@ -181,14 +193,14 @@ checkExpr (P.Float _) = return (Just T.Float)
 checkExpr (P.Bool _) = return (Just T.Bool)
 checkExpr (P.Str s) = let n = (length s)
                       in return (Just (T.Array (n+1) (0, n) T.Char))
-checkExpr (P.Var (P.Ident name _ _ )) = do
-  symbol <- checkExists name
+checkExpr (P.Var ident@(P.Ident name _ _ )) = do
+  symbol <- checkExists ident
   case symbol of
     Just (Variable i v s o) -> return (Just s)
     _ -> tell ["Se esperaba una variable " ++ name] >> return Nothing -- FIXME: mejor descripcion
 
-checkExpr (P.FunctionCall (P.Ident name _ _) params) = do
-  symbol <- checkExists name
+checkExpr (P.FunctionCall ident@(P.Ident name _ _) params) = do
+  symbol <- checkExists ident
   case symbol of
     Just (Function _ _ ftype) -> do
       check <- mapM checkExpr (map snd params)
@@ -201,9 +213,9 @@ checkExpr (P.FunctionCall (P.Ident name _ _) params) = do
     Just _ -> tell ["Se esperaba funcion"] >> return Nothing
     Nothing -> return Nothing
 
-checkExpr (P.TypeCast e (P.Ident name _ _)) = do
+checkExpr (P.TypeCast e ident@(P.Ident name _ _)) = do
   original <- checkExpr e
-  dest <- checkExists name
+  dest <- checkExists ident
   -- error $ (show original) ++ " " ++ (show dest)
   case (original, dest) of
     (Just initialType, Just (TypeDeclaration _ _ finalType)) ->
@@ -258,7 +270,7 @@ addVariable ident@(P.Ident name _ _) kind ptype =
         let newSymbol = Variable ident kind sst offset
         actualOffset += T.sizeOf sst
         current.mapping.at name ?= newSymbol
-      _ -> tell ["Tipo desconocido"] -- FIXME: better description
+      _ -> tell ["Unknown type " ++ typename ptype ++ " " ++ showIdentPosition ident]
 
 -- | Adds a new typedef to the current table or stores an error on failure.
 addTypedef :: P.Ident -> P.Type -> Generator b ()
@@ -269,7 +281,7 @@ addTypedef ident@(P.Ident name _ _) ptype =
         sst <- toActualType ptype
         let newSymbol = TypeDeclaration ident empty (T.TypeDef sst)
         current.mapping.at name ?= newSymbol
-      _ -> tell ["Tipo desconocido"] -- FIXME: better description
+      _ -> tell ["Unknown type " ++ typename ptype ++ " " ++ showIdentPosition ident ]
 
 -- | Adds a new extended function (shallow pass) to the current table or
 -- stores an error on failure.
@@ -384,7 +396,7 @@ handleInstruction returnType inst = case inst of
                                                  trackAndBuild returnType (Table newTable []) insts (T.sizeOf t)
                       Just (T.ReferenceTo (T.Array _ _ t)) -> do let newTable = M.singleton name (Variable ident P.VarKind t 0) -- FIXME: change to iterating type
                                                                  trackAndBuild returnType (Table newTable []) insts (T.sizeOf t)
-                      _ -> tell ["Se esperaba un tipo iterable, for"] >> return ()
+                      _ -> tell ["Expected iterable type (array) at " ++ showIdentPosition ident] >> return ()
     else return ()
 
   -- Return instruction
