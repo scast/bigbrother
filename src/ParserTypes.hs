@@ -40,11 +40,11 @@ data Global = GlobalVar VKind Type [Initialization]
 data Expr = B String Expr Expr (Int, Int)
           | U String Expr (Int, Int)
           | Field Expr Ident
-          | Char String
-          | Number String
-          | Float String
-          | Bool String
-          | Str String
+          | Char String (Int, Int)
+          | Number String (Int, Int)
+          | Float String (Int, Int)
+          | Bool String (Int, Int)
+          | Str String (Int, Int)
           | Var Ident
           | FunctionCall Ident [(Maybe Ident, Expr)]
           | TypeCast Expr Ident
@@ -71,4 +71,9 @@ getPos (Field _ e) = (line e, column e)
 getPos (Var e) = (line e, column e)
 getPos (FunctionCall ident _) = (line ident, column ident)
 getPos (TypeCast _ ident) = (line ident, column ident)
+getPos (Char _ x) = x
+getPos (Number _ x) = x
+getPos (Float _ x) = x
+getPos (Bool _ x) = x
+getPos (Str _ x) = x
 getPos _ = ((-1), (-1))

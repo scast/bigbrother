@@ -28,12 +28,12 @@
 > %error { happyError }
 
 > %token
->    NUMBER   { L _ LNum $$ }
->    FLOAT   { L _ LFloat $$ }
->    CHAR     { L _ LChar $$ }
->    BOOL     { L _ LBool $$ }
+>    NUMBER   { L _ LNum _ }
+>    FLOAT   { L _ LFloat _ }
+>    CHAR     { L _ LChar _ }
+>    BOOL     { L _ LBool _ }
 >    IDENT    { L _ LId _ }
->    STRING   { L _ LString $$ }
+>    STRING   { L _ LString _ }
 >    CONST    { L _ LConst s }
 >    STATIC   { L _ LStatic s }
 >    FN       { L _ LFn s }
@@ -158,11 +158,11 @@
 >   | IDENT DIMENSIONS {% returnM  ( ArrayOf (Type $ saveIdent $1) $2 ) }
 
 > DIMENSIONS
->   : '[' NUMBER ']'            {% returnM  ( [Just (Number $2)] ) }
->   | '[' NUMBER '..' NUMBER ']'            {% returnM  ([Just (R (Number $2) (Number $4) (Number "1") (saveExprPos $3) )]) }
+>   : '[' NUMBER ']'            {% returnM  ( [Just (Number (saveExprOp $2) (saveExprPos $2) )] ) }
+>   | '[' NUMBER '..' NUMBER ']'            {% returnM  ([Just (R (Number (saveExprOp $2) (saveExprPos $2)) (Number (saveExprOp $4) (saveExprPos $4)) (Number "1" (-1, -1)) (saveExprPos $3) )]) }
 -- >   | '[' ']'                 {% returnM  ( [Nothing] ) }
->   | DIMENSIONS '[' NUMBER ']' {% returnM  ( $1 ++ [Just (Number $3)] ) }
->   | DIMENSIONS '[' NUMBER '..' NUMBER ']' {% returnM  ( $1 ++ [Just (R (Number $3) (Number $5) (Number "1") (saveExprPos $4) ) ] ) }
+>   | DIMENSIONS '[' NUMBER ']' {% returnM  ( $1 ++ [Just (Number (saveExprOp $3) (saveExprPos $3))] ) }
+>   | DIMENSIONS '[' NUMBER '..' NUMBER ']' {% returnM  ( $1 ++ [Just (R (Number (saveExprOp $3) (saveExprPos $3)) (Number (saveExprOp $5) (saveExprPos $5)) (Number "1" (-1, -1)) (saveExprPos $4) ) ] ) }
 -- >   | DIMENSIONS '[' ']'      {% returnM  ( $1 ++ [Nothing] ) }
 
 > INSTONADA
@@ -208,7 +208,7 @@
 > LOOPING
 >   : LOOP BLOQUE                             {% returnM  ( Loop $2 ) }
 >   | WHILE EXPR BLOQUE                       {% returnM  ( While $2 $3 ) }
->   | WHILE error BLOQUE                       {% tell ["Error de reconocimiento (shift) cerca de \"while\" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++  ")"] >> returnM (While (Str "error") $3) }
+>   | WHILE error BLOQUE                       {% tell ["Error de reconocimiento (shift) cerca de \"while\" (" ++ (Lexer.showPosn (Lexer.pos $1)) ++  ")"] >> returnM (While (Str "error" (-1, -1) ) $3) }
 >   | FOR TYPESIMPLEREF IDENT ':' EXPR BLOQUE {% returnM  ( For $2 (saveIdent $3) $5 $6 ) }
 
 > ASIGNACION
@@ -227,11 +227,11 @@
 >   | EXPR '||=' EXPR {% returnM  ( Assign "||" $1 $3 (saveExprPos $2) ) }
 
 > EXPR
->   : CHAR                     {% returnM  ( Char $1 ) }
->   | NUMBER                   {% returnM  ( Number $1 ) }
->   | FLOAT                   {% returnM  ( Float $1 ) }
->   | BOOL                     {% returnM  ( Bool $1 ) }
->   | STRING                   {% returnM  ( Str $1 ) }
+>   : CHAR                     {% returnM  ( Char (saveExprOp $1) (saveExprPos $1) ) }
+>   | NUMBER                   {% returnM  ( Number (saveExprOp $1) (saveExprPos $1) ) }
+>   | FLOAT                   {% returnM  ( Float (saveExprOp $1) (saveExprPos $1) ) }
+>   | BOOL                     {% returnM  ( Bool (saveExprOp $1) (saveExprPos $1) ) }
+>   | STRING                   {% returnM  ( Str (saveExprOp $1) (saveExprPos $1) ) }
 >   | IDENT                    {% returnM  ( Var (saveIdent $1) ) }
 >   | IDENT '(' LISTAONADA ')' {% returnM  ( FunctionCall (saveIdent $1) $3 ) }
 >   | EXPR '.' IDENT           {% returnM  ( Field $1 (saveIdent $3) ) }
@@ -256,7 +256,7 @@
 >   | EXPR '|' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
 >   | EXPR '&' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
 >   | EXPR '%' EXPR            {% returnM  ( B (saveExprOp $2) $1 $3 (saveExprPos $2)) }
->   | NUMBER '..' NUMBER       {% returnM  ( R (Number $1) (Number $3) (Number "1") (saveExprPos $2) ) }
+>   | NUMBER '..' NUMBER       {% returnM  ( R (Number (saveExprOp $1) (saveExprPos $1)) (Number (saveExprOp $3) (saveExprPos $3)) (Number "1" (-1, -1)) (saveExprPos $2) ) }
 >   | '#' EXPR                 {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
 >   | '@' EXPR                 {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }
 >   | '~' EXPR                 {% returnM  ( U (saveExprOp $1) $2 (saveExprPos $1) ) }

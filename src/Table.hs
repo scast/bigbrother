@@ -149,7 +149,7 @@ checkNotExists k cb = do
     Nothing  -> cb
 
 checkFields a fs ident  = maybe
-                   (tell ["No field named " ++ a ++ " in field lookup expression in " ++ showIdentPosition ident] >> return Nothing)
+                   (tell ["No field named " ++ a ++ " in field lookup expression at " ++ showIdentPosition ident] >> return Nothing)
                    (\x -> return (Just x))
                    (L.lookup a fs)
 
@@ -192,11 +192,11 @@ checkExpr (P.U op u pos ) = do
       (\x -> return (Just x))
       (T.uoperator op lt)
     _ -> tell ["Can't perform unary " ++ op ++ " at " ++ show pos] >> return Nothing
-checkExpr (P.Char _) = return (Just T.Char)
-checkExpr (P.Number _) = return (Just T.Int32)
-checkExpr (P.Float _) = return (Just T.Float)
-checkExpr (P.Bool _) = return (Just T.Bool)
-checkExpr (P.Str s) = do
+checkExpr (P.Char _ _) = return (Just T.Char)
+checkExpr (P.Number _ _) = return (Just T.Int32)
+checkExpr (P.Float _ _ ) = return (Just T.Float)
+checkExpr (P.Bool _ _) = return (Just T.Bool)
+checkExpr (P.Str s _ ) = do
   let n = (length s)
       res = (T.Array (n+1) (0, n) T.Char)
   offset <- use actualOffset
@@ -208,7 +208,8 @@ checkExpr (P.Var ident@(P.Ident name _ _ )) = do
   symbol <- checkExists ident
   case symbol of
     Just (Variable i v s o) -> return (Just s)
-    _ -> tell ["Found symbol, but not variable. Expected variable with name " ++ name ++ " at " ++ showIdentPosition ident] >> return Nothing
+    Just _ -> tell ["Found symbol, but not variable. Expected variable with name " ++ name ++ " at " ++ showIdentPosition ident] >> return Nothing
+    Nothing -> tell ["Symbol not found. Expected variable with name " ++ name ++ " at " ++ showIdentPosition ident] >> return Nothing
 
 checkExpr (P.FunctionCall ident@(P.Ident name _ _) params) = do
   symbol <- checkExists ident
@@ -240,8 +241,8 @@ checkExpr (P.R l r _ pos) = do
   right <- checkExpr r
   case (left, right) of
     (Just T.Int32, Just T.Int32) -> do
-      let (P.Number x) = l
-          (P.Number y) = r
+      let (P.Number x _ ) = l
+          (P.Number y _ ) = r
       return (Just (T.Array (read y - read x + 1) (read x, read y) T.Int32))
     _ -> tell ["Expected integer literals in the range bounds at " ++ show pos] >> return Nothing
 
@@ -417,9 +418,14 @@ handleInstruction returnType inst = case inst of
 
   -- Return instruction
   P.Return (Just expr) -> do
-    t <- checkExpr expr
-    ok <- checkParams (show (P.getPos expr)) [t] [returnType]
-    if ok then return () else tell ["Expected return of " ++ (show returnType) ++ " at " ++ (show (P.getPos expr))]
+    if returnType == T.Void then tell ["Unexpected return type in a void function " ++ (show (P.getPos expr))]
+    else do
+            t <- checkExpr expr
+            ok <- checkParams (show (P.getPos expr)) [t] [returnType]
+            if ok then return () else tell ["Expected return of " ++ (show returnType) ++ " at " ++ (show (P.getPos expr))]
+
+
+  P.Return Nothing -> if returnType /= T.Void then tell ["Unexpected return type in a non-void function."] else return ()
 
   -- A function call
   P.VoidCall ident@(P.Ident name _ _) inits -> do
@@ -579,8 +585,8 @@ handleGlobal _ = return ()
 
 interpretDims :: [Maybe P.Expr] -> [(Int, (Int, Int))]
 interpretDims = map f
-  where f (Just (P.Number x)) = (read x, (0, (read x)-1))
-        f (Just (P.R (P.Number x) (P.Number y) _ _)) = (read y - read x + 1, (read x, read y))
+  where f (Just (P.Number x _ )) = (read x, (0, (read x)-1))
+        f (Just (P.R (P.Number x _ ) (P.Number y _) _ _)) = (read y - read x + 1, (read x, read y))
 
 toActualType :: P.Type -> Generator b T.Type
 toActualType (P.ArrayOf ptype dims) = do
