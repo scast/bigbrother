@@ -343,13 +343,14 @@ handleInstruction returnType inst = case inst of
           ok <- checkParams [exprType] [sst]
           return ()
   -- Assignment
-  P.Assign _ left expr -> do
+  P.Assign "=" left expr -> do
     leftType <- checkExpr left
     rightExpr <- checkExpr expr
     if isJust leftType then
       checkParams [rightExpr] [fromJust leftType] >> return ()
     else return ()
-    -- void (checkExpr left >> checkExpr expr)
+  P.Assign op left expr -> do
+    handleInstruction returnType (P.Assign "=" left (P.B op left expr))
 
   -- Grab instruction
   P.Grab expr ->
