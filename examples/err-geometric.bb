@@ -11,7 +11,8 @@ struct rect {
     p1, p2 : point,
     fill_color : enum color {
         red, blue, green
-    }
+    },
+	blue : float
 };
 
 fn main(args: string[]) {
